@@ -1,4 +1,4 @@
-use crate::{CombineOperation, Operation};
+use crate::{CombineOperation, Operation, WireValue};
 
 pub struct InputIterator<'a, T> {
     op: &'a T,
@@ -22,7 +22,7 @@ impl<'a, T> OutputIterator<'a, T> {
     }
 }
 
-impl<'a, T> Iterator for InputIterator<'a, Operation<T>> {
+impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -97,7 +97,7 @@ impl<'a, T> Iterator for InputIterator<'a, Operation<T>> {
     }
 }
 
-impl<'a, T> Iterator for OutputIterator<'a, Operation<T>> {
+impl<'a, T: WireValue> Iterator for OutputIterator<'a, Operation<T>> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -176,9 +176,9 @@ impl<'a> Iterator for InputIterator<'a, CombineOperation> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let res = match *self.op {
-            CombineOperation::GF2(op) => InputIterator::new(&op).nth(self.index),
-            CombineOperation::Z64(op) => InputIterator::new(&op).nth(self.index),
+        let res = match self.op {
+            CombineOperation::GF2(op) => InputIterator::new(op).nth(self.index),
+            CombineOperation::Z64(op) => InputIterator::new(op).nth(self.index),
             CombineOperation::B2A(_, base) => {
                 if self.index < 64 {
                     Some(base + self.index)
@@ -197,12 +197,12 @@ impl<'a> Iterator for OutputIterator<'a, CombineOperation> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let res = match *self.op {
-            CombineOperation::GF2(op) => OutputIterator::new(&op).nth(self.index),
-            CombineOperation::Z64(op) => OutputIterator::new(&op).nth(self.index),
+        let res = match self.op {
+            CombineOperation::GF2(op) => OutputIterator::new(op).nth(self.index),
+            CombineOperation::Z64(op) => OutputIterator::new(op).nth(self.index),
             CombineOperation::B2A(a, _) => {
                 if self.index == 0 {
-                    Some(a)
+                    Some(*a)
                 } else {
                     None
                 }
