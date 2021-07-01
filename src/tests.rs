@@ -130,6 +130,7 @@ mod tests {
             let (translated_out, translated_in1, translated_in2, _new_c): (usize, usize, usize, T) =
                 rand::random();
 
+            // Test vanilla translation
             let gate = Operation::<T>::construct(
                 variant,
                 [original_in1, original_in2].iter().copied(),
@@ -154,6 +155,7 @@ mod tests {
             assert_eq!(gate, identity);
             assert_eq!(translation_target, translated);
 
+            // Test hashmap translation
             let translated_via_hashmap = gate
                 .translate_from_hashmap(HashMap::<usize, usize>::from_iter(IntoIter::new([
                     (original_out, translated_out),
@@ -164,6 +166,20 @@ mod tests {
 
             assert_eq!(translation_target, translated_via_hashmap);
 
+            // Test translation via function
+            let incremented = Operation::<T>::construct(
+                variant,
+                [original_in1 + 1, original_in2 + 1].iter().copied(),
+                [original_out + 2].iter().copied(),
+                Some(original_c),
+            );
+            let translated_via_fn = gate
+                .translate_from_fn(|x| x + 1, |x| x + 2)
+                .expect("Function translation failed");
+
+            assert_eq!(incremented, translated_via_fn);
+
+            // Test translation as CombineOperation
             let as_combine: CombineOperation = gate.into();
             let target_as_combine: CombineOperation = translation_target.into();
 
