@@ -3,6 +3,9 @@ mod tests {
     use crate::{CombineOperation, HasIO, OpType, Operation, Translatable, WireValue};
     use rand::distributions::{Distribution, Standard};
     use rand::thread_rng;
+    use std::array::IntoIter;
+    use std::collections::HashMap;
+    use std::iter::FromIterator;
 
     #[test]
     fn test_io_operations() {
@@ -151,6 +154,16 @@ mod tests {
             assert_eq!(gate, identity);
             assert_eq!(translation_target, translated);
 
+            let translated_via_hashmap = gate
+                .translate_from_hashmap(HashMap::<usize, usize>::from_iter(IntoIter::new([
+                    (original_out, translated_out),
+                    (original_in1, translated_in1),
+                    (original_in2, translated_in2),
+                ])))
+                .expect("Hashmap Translation Failed");
+
+            assert_eq!(translation_target, translated_via_hashmap);
+
             let as_combine: CombineOperation = gate.into();
             let target_as_combine: CombineOperation = translation_target.into();
 
@@ -195,13 +208,13 @@ mod tests {
             let gate = CombineOperation::SizeHint(out, low);
             let translation_target = CombineOperation::SizeHint(target_out, target_low);
 
-            let identity = gate.translate(gate.inputs(), gate.outputs()).unwrap();
-            let translated = gate
-                .translate(translation_target.inputs(), translation_target.outputs())
-                .unwrap();
+            let identity = gate.translate(gate.inputs(), gate.outputs());
+            let translated =
+                gate.translate(translation_target.inputs(), translation_target.outputs());
 
-            assert_eq!(gate, identity);
-            assert_eq!(gate, translated); // Translation should not change SizeHints
+            // Size Hints should not be translatable (they should be explicitly re-created)
+            assert_eq!(None, identity);
+            assert_eq!(None, translated);
         }
     }
 }

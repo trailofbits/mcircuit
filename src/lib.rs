@@ -286,7 +286,7 @@ impl Translatable for CombineOperation {
                 wout.next().expect("B2A needs a Z64 output"),
                 win.next().expect("B2A needs a GF2 input"),
             )),
-            CombineOperation::SizeHint(z64, gf2) => Some(CombineOperation::SizeHint(*z64, *gf2)),
+            CombineOperation::SizeHint(_z64, _gf2) => None,
         }
     }
 }
