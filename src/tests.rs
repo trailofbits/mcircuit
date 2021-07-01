@@ -140,32 +140,32 @@ mod tests {
                 }
             }
         }
+    }
 
-        #[test]
-        fn test_io_combine_operations() {
-            // GF2/Z64 are handled by the previous test
+    #[test]
+    fn test_io_combine_operations() {
+        // GF2/Z64 are handled by the previous test
 
-            for _ in 0..10 {
-                // Test B2A
-                let (out, low): (usize, usize) = rand::random();
-                let gate = CombineOperation::B2A(out, low);
+        for _ in 0..10 {
+            // Test B2A
+            let (out, low): (usize, usize) = rand::random();
+            let gate = CombineOperation::B2A(out, low);
 
-                let mut expected_inputs: Vec<usize> = vec![];
-                for i in low..(low + 64) {
-                    expected_inputs.push(i);
-                }
-                let collected_inputs: Vec<usize> = gate.inputs().collect();
-                let collected_outputs: Vec<usize> = gate.outputs().collect();
-                assert_eq!(collected_inputs, expected_inputs);
-                assert_eq!(collected_outputs, vec![out]);
-
-                // Test SizeHint
-                let gate = CombineOperation::SizeHint(out, low);
-                let collected_inputs: Vec<usize> = gate.inputs().collect();
-                let collected_outputs: Vec<usize> = gate.outputs().collect();
-                assert_eq!(collected_inputs, vec![]);
-                assert_eq!(collected_outputs, vec![]);
+            let mut expected_inputs: Vec<usize> = vec![];
+            for i in low..(low + 64) {
+                expected_inputs.push(i);
             }
+            let collected_inputs: Vec<usize> = gate.inputs().collect();
+            let collected_outputs: Vec<usize> = gate.outputs().collect();
+            assert_eq!(collected_inputs, expected_inputs);
+            assert_eq!(collected_outputs, vec![out]);
+
+            // Test SizeHint
+            let gate = CombineOperation::SizeHint(out, low);
+            let collected_inputs: Vec<usize> = gate.inputs().collect();
+            let collected_outputs: Vec<usize> = gate.outputs().collect();
+            assert_eq!(collected_inputs, vec![]);
+            assert_eq!(collected_outputs, vec![]);
         }
     }
 }

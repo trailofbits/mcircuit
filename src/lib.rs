@@ -76,12 +76,22 @@ impl<T> Operation<T> {
     }
 }
 
-pub trait HasIO<T> {
-    fn inputs(&self) -> InputIterator<T>;
-    fn outputs(&self) -> OutputIterator<T>;
+pub trait HasIO {
+    fn inputs(&self) -> InputIterator<Self>
+    where
+        Self: Sized;
+    fn outputs(&self) -> OutputIterator<Self>
+    where
+        Self: Sized;
 }
 
-impl<T> HasIO<Operation<T>> for Operation<T> {
+pub trait Translatable {
+    fn translate(&self, win: &[usize], wout: &[usize]) -> Option<Self>
+    where
+        Self: Sized;
+}
+
+impl<T> HasIO for Operation<T> {
     #[inline(always)]
     fn inputs(&self) -> InputIterator<Operation<T>> {
         InputIterator::new(self)
@@ -93,7 +103,7 @@ impl<T> HasIO<Operation<T>> for Operation<T> {
     }
 }
 
-impl HasIO<CombineOperation> for CombineOperation {
+impl HasIO for CombineOperation {
     #[inline(always)]
     fn inputs(&self) -> InputIterator<CombineOperation> {
         InputIterator::new(self)
