@@ -136,9 +136,38 @@ pub trait Translatable {
         I1: Iterator<Item = usize>,
         I2: Iterator<Item = usize>;
 
-    fn translate_from_hashmap(&self, translation_table: HashMap<usize, usize>) -> Option<Self>
+    fn translate_from_hashmap<'a>(
+        &'a self,
+        translation_table: HashMap<usize, usize>,
+    ) -> Option<Self>
     where
-        Self: Sized;
+        Self: Sized + HasIO,
+        InputIterator<'a, Self>: Iterator<Item = usize>,
+        OutputIterator<'a, Self>: Iterator<Item = usize>,
+    {
+        self.translate(
+            self.inputs()
+                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
+            self.outputs()
+                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
+        )
+    }
+
+    fn translate_from_fn<'a>(
+        &'a self,
+        input_mapper: fn(usize) -> usize,
+        output_mapper: fn(usize) -> usize,
+    ) -> Option<Self>
+    where
+        Self: Sized + HasIO,
+        InputIterator<'a, Self>: Iterator<Item = usize>,
+        OutputIterator<'a, Self>: Iterator<Item = usize>,
+    {
+        self.translate(
+            self.inputs().map(input_mapper),
+            self.outputs().map(output_mapper),
+        )
+    }
 }
 
 impl<T: WireValue> HasIO for Operation<T> {
@@ -235,18 +264,6 @@ impl<T: WireValue> Translatable for Operation<T> {
             )),
         }
     }
-
-    fn translate_from_hashmap(&self, translation_table: HashMap<usize, usize>) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        self.translate(
-            self.inputs()
-                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
-            self.outputs()
-                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
-        )
-    }
 }
 
 impl Translatable for CombineOperation {
@@ -271,18 +288,6 @@ impl Translatable for CombineOperation {
             )),
             CombineOperation::SizeHint(z64, gf2) => Some(CombineOperation::SizeHint(*z64, *gf2)),
         }
-    }
-
-    fn translate_from_hashmap(&self, translation_table: HashMap<usize, usize>) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        self.translate(
-            self.inputs()
-                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
-            self.outputs()
-                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
-        )
     }
 }
 
