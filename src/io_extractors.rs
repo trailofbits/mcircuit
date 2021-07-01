@@ -32,12 +32,10 @@ impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
             Operation::Sub(_, a, b) => {
                 if self.index == 0 {
                     Some(a)
+                } else if self.index == 1 {
+                    Some(b)
                 } else {
-                    if self.index == 1 {
-                        Some(b)
-                    } else {
-                        None
-                    }
+                    None
                 }
             }
             Operation::SubConst(_, a, _) => {
@@ -50,12 +48,10 @@ impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
             Operation::Add(_, a, b) => {
                 if self.index == 0 {
                     Some(a)
+                } else if self.index == 1 {
+                    Some(b)
                 } else {
-                    if self.index == 1 {
-                        Some(b)
-                    } else {
-                        None
-                    }
+                    None
                 }
             }
             Operation::AddConst(_, a, _) => {
@@ -68,12 +64,10 @@ impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
             Operation::Mul(_, a, b) => {
                 if self.index == 0 {
                     Some(a)
+                } else if self.index == 1 {
+                    Some(b)
                 } else {
-                    if self.index == 1 {
-                        Some(b)
-                    } else {
-                        None
-                    }
+                    None
                 }
             }
             Operation::MulConst(_, a, _) => {
@@ -93,7 +87,7 @@ impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
             Operation::Const(_, _) => None,
         };
         self.index += 1;
-        return res;
+        res
     }
 }
 
@@ -168,7 +162,7 @@ impl<'a, T: WireValue> Iterator for OutputIterator<'a, Operation<T>> {
             }
         };
         self.index += 1;
-        return res;
+        res
     }
 }
 
@@ -189,7 +183,7 @@ impl<'a> Iterator for InputIterator<'a, CombineOperation> {
             CombineOperation::SizeHint(_, _) => None,
         };
         self.index += 1;
-        return res;
+        res
     }
 }
 
@@ -210,6 +204,6 @@ impl<'a> Iterator for OutputIterator<'a, CombineOperation> {
             CombineOperation::SizeHint(_, _) => None,
         };
         self.index += 1;
-        return res;
+        res
     }
 }

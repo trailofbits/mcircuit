@@ -82,7 +82,7 @@ impl<T: WireValue> Operation<T> {
         }
     }
 
-    fn construct<'a, I1, I2>(
+    fn construct<I1, I2>(
         ty: OpType<T>,
         mut inputs: I1,
         mut outputs: I2,
@@ -130,7 +130,7 @@ pub trait HasIO {
 }
 
 pub trait Translatable {
-    fn translate<'a, I1, I2>(&self, win: I1, wout: I2) -> Option<Self>
+    fn translate<I1, I2>(&self, win: I1, wout: I2) -> Option<Self>
     where
         Self: Sized,
         I1: Iterator<Item = usize>,
