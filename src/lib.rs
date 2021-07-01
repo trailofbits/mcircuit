@@ -8,6 +8,7 @@ use crate::io_extractors::{InputIterator, OutputIterator};
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub trait WireValue: Copy + PartialEq + std::fmt::Debug {}
 impl WireValue for bool {}
@@ -134,6 +135,10 @@ pub trait Translatable {
         Self: Sized,
         I1: Iterator<Item = usize>,
         I2: Iterator<Item = usize>;
+
+    fn translate_from_hashmap(&self, translation_table: HashMap<usize, usize>) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 impl<T: WireValue> HasIO for Operation<T> {
@@ -230,6 +235,18 @@ impl<T: WireValue> Translatable for Operation<T> {
             )),
         }
     }
+
+    fn translate_from_hashmap(&self, translation_table: HashMap<usize, usize>) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        self.translate(
+            self.inputs()
+                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
+            self.outputs()
+                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
+        )
+    }
 }
 
 impl Translatable for CombineOperation {
@@ -254,6 +271,18 @@ impl Translatable for CombineOperation {
             )),
             CombineOperation::SizeHint(z64, gf2) => Some(CombineOperation::SizeHint(*z64, *gf2)),
         }
+    }
+
+    fn translate_from_hashmap(&self, translation_table: HashMap<usize, usize>) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        self.translate(
+            self.inputs()
+                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
+            self.outputs()
+                .map(|x| *translation_table.get(&x).unwrap_or(&x)),
+        )
     }
 }
 
