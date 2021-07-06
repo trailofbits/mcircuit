@@ -1,8 +1,11 @@
 #[macro_use]
 extern crate variant_count;
 
+mod eval;
 mod io_extractors;
 mod tests;
+
+pub use eval::evaluate_composite_program;
 
 use crate::io_extractors::{InputIterator, OutputIterator};
 use rand::distributions::{Distribution, Standard};
@@ -56,6 +59,8 @@ pub enum CombineOperation {
 
     /// Converts a value on GF2 to a value on Z64
     /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice
+    /// This means that the least significant bit of the Z64 value will come from the
+    /// GF2 wire with the lowest index. Make sure your circuits are designed accordingly.
     B2A(usize, usize),
 
     /// Information about the number of wires needed to evaluate the circuit. As with B2A,

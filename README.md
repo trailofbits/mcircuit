@@ -5,5 +5,5 @@ A library of types for working with arithmetic circuits
  - [x] : Circuit type
  - [x] : I/O extraction
  - [x] : Translations
- - [ ] : Plaintext Evaluation
+ - [x] : Plaintext Evaluation
  - [ ] : Import/Export

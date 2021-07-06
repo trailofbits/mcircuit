@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::eval::{evaluate_composite_program, largest_wires};
     use crate::{CombineOperation, HasIO, OpType, Operation, Translatable, WireValue};
     use rand::distributions::{Distribution, Standard};
     use rand::thread_rng;
@@ -232,5 +233,87 @@ mod tests {
             assert_eq!(None, identity);
             assert_eq!(None, translated);
         }
+    }
+
+    #[test]
+    fn test_simple_eval() {
+        let circuit = vec![
+            CombineOperation::GF2(Operation::Const(0, true)),
+            CombineOperation::GF2(Operation::AddConst(1, 0, false)),
+            CombineOperation::GF2(Operation::AssertConst(1, true)),
+            CombineOperation::Z64(Operation::Const(0, 15)),
+            CombineOperation::Z64(Operation::AddConst(1, 0, 14)),
+            CombineOperation::Z64(Operation::AssertConst(1, 14 + 15)),
+        ];
+
+        evaluate_composite_program(&circuit, &vec![], &vec![]);
+    }
+
+    #[test]
+    fn test_with_inputs() {
+        let circuit = vec![
+            CombineOperation::GF2(Operation::Input(0)),
+            CombineOperation::GF2(Operation::Input(1)),
+            CombineOperation::GF2(Operation::Mul(2, 1, 0)),
+            CombineOperation::GF2(Operation::AssertConst(0, true)),
+            CombineOperation::GF2(Operation::AssertConst(1, true)),
+            CombineOperation::GF2(Operation::AssertConst(2, true)),
+            // Similar Circuit in Z64
+            CombineOperation::Z64(Operation::Input(0)),
+            CombineOperation::Z64(Operation::Input(1)),
+            CombineOperation::Z64(Operation::Mul(2, 1, 0)),
+            CombineOperation::Z64(Operation::AssertConst(0, 14)),
+            CombineOperation::Z64(Operation::AssertConst(1, 15)),
+            CombineOperation::Z64(Operation::AssertConst(2, 14 * 15)),
+        ];
+
+        evaluate_composite_program(&circuit, &vec![true, true], &vec![14, 15]);
+    }
+
+    #[test]
+    fn test_b_to_a() {
+        let expected: u64 = 0b11011101;
+
+        let circuit = vec![
+            CombineOperation::SizeHint(1, 64),
+            CombineOperation::GF2(Operation::Input(0)),
+            CombineOperation::GF2(Operation::Input(1)),
+            CombineOperation::GF2(Operation::Input(2)),
+            CombineOperation::GF2(Operation::Input(3)),
+            CombineOperation::GF2(Operation::Const(4, (expected & (1 << 4)) != 0)),
+            CombineOperation::GF2(Operation::Const(5, (expected & (1 << 5)) != 0)),
+            CombineOperation::GF2(Operation::Const(6, (expected & (1 << 6)) != 0)),
+            CombineOperation::GF2(Operation::Const(7, (expected & (1 << 7)) != 0)),
+            CombineOperation::B2A(1, 0),
+            CombineOperation::Z64(Operation::Input(2)),
+            CombineOperation::Z64(Operation::Sub(3, 1, 2)),
+            CombineOperation::Z64(Operation::AssertConst(1, expected)),
+            CombineOperation::Z64(Operation::AssertConst(2, expected)),
+            CombineOperation::Z64(Operation::AssertConst(3, 0)),
+        ];
+
+        evaluate_composite_program(
+            &circuit,
+            &vec![
+                (expected & (1 << 0)) != 0,
+                (expected & (1 << 1)) != 0,
+                (expected & (1 << 2)) != 0,
+                (expected & (1 << 3)) != 0,
+            ],
+            &vec![expected],
+        );
+    }
+
+    #[test]
+    fn test_size_hinting() {
+        let mut circuit = vec![
+            CombineOperation::GF2(Operation::Input(99)),
+            CombineOperation::Z64(Operation::Input(199)),
+        ];
+
+        assert_eq!((200, 100), largest_wires(&circuit));
+        circuit.insert(0, CombineOperation::SizeHint(400, 300));
+
+        assert_eq!((400, 300), largest_wires(&circuit));
     }
 }
