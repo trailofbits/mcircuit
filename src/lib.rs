@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate variant_count;
 
+mod analysis;
 mod eval;
 mod io_extractors;
 mod tests;

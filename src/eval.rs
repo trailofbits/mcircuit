@@ -1,3 +1,4 @@
+use crate::analysis::{AnalysisPass, WireCounter};
 use crate::{CombineOperation, Operation};
 use std::cmp::max;
 
@@ -105,86 +106,7 @@ pub fn evaluate_composite_program(
 }
 
 pub fn largest_wires_exhaustive(program: &[CombineOperation]) -> (usize, usize) {
-    let mut bool_count: usize = 0;
-    let mut arith_count: usize = 0;
-
-    for step in program {
-        match step {
-            CombineOperation::GF2(gf2_insn) => match *gf2_insn {
-                Operation::Input(dst) => {
-                    bool_count = max(bool_count, dst);
-                }
-                Operation::Random(dst) => {
-                    bool_count = max(bool_count, dst);
-                }
-                Operation::Add(dst, src1, src2) => {
-                    bool_count = max(bool_count, max(dst, max(src1, src2)));
-                }
-                Operation::Sub(dst, src1, src2) => {
-                    bool_count = max(bool_count, max(dst, max(src1, src2)));
-                }
-                Operation::Mul(dst, src1, src2) => {
-                    bool_count = max(bool_count, max(dst, max(src1, src2)));
-                }
-                Operation::AddConst(dst, src, _c) => {
-                    bool_count = max(bool_count, max(dst, src));
-                }
-                Operation::SubConst(dst, src, _c) => {
-                    bool_count = max(bool_count, max(dst, src));
-                }
-                Operation::MulConst(dst, src, _c) => {
-                    bool_count = max(bool_count, max(dst, src));
-                }
-                Operation::AssertConst(src, _c) => {
-                    bool_count = max(bool_count, src);
-                }
-                Operation::Const(dst, _c) => {
-                    bool_count = max(bool_count, dst);
-                }
-            },
-            CombineOperation::Z64(z64_insn) => match *z64_insn {
-                Operation::Input(dst) => {
-                    arith_count = max(arith_count, dst);
-                }
-                Operation::Random(dst) => {
-                    arith_count = max(arith_count, dst);
-                }
-                Operation::Add(dst, src1, src2) => {
-                    arith_count = max(arith_count, max(dst, max(src1, src2)));
-                }
-                Operation::Sub(dst, src1, src2) => {
-                    arith_count = max(arith_count, max(dst, max(src1, src2)));
-                }
-                Operation::Mul(dst, src1, src2) => {
-                    arith_count = max(arith_count, max(dst, max(src1, src2)));
-                }
-                Operation::AddConst(dst, src, _c) => {
-                    arith_count = max(arith_count, max(dst, src));
-                }
-                Operation::SubConst(dst, src, _c) => {
-                    arith_count = max(arith_count, max(dst, src));
-                }
-                Operation::MulConst(dst, src, _c) => {
-                    arith_count = max(arith_count, max(dst, src));
-                }
-                Operation::AssertConst(src, _c) => {
-                    arith_count = max(arith_count, src);
-                }
-                Operation::Const(dst, _c) => {
-                    arith_count = max(arith_count, dst);
-                }
-            },
-            CombineOperation::B2A(dst, low) => {
-                arith_count = max(arith_count, *dst);
-                bool_count = max(bool_count, *low + 63);
-            }
-            CombineOperation::SizeHint(z64, gf2) => {
-                arith_count = max(arith_count, *z64);
-                bool_count = max(bool_count, *gf2);
-            }
-        }
-    }
-    (arith_count + 1, bool_count + 1)
+    WireCounter::default().analyze(program)
 }
 
 pub fn largest_wires(program: &[CombineOperation]) -> (usize, usize) {
