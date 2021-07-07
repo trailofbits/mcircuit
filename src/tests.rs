@@ -246,7 +246,7 @@ mod tests {
             CombineOperation::Z64(Operation::AssertConst(1, 14 + 15)),
         ];
 
-        evaluate_composite_program(&circuit, &vec![], &vec![]);
+        evaluate_composite_program(&circuit, &[], &[]);
     }
 
     #[test]
@@ -267,7 +267,7 @@ mod tests {
             CombineOperation::Z64(Operation::AssertConst(2, 14 * 15)),
         ];
 
-        evaluate_composite_program(&circuit, &vec![true, true], &vec![14, 15]);
+        evaluate_composite_program(&circuit, &[true, true], &[14, 15]);
     }
 
     #[test]
@@ -294,13 +294,13 @@ mod tests {
 
         evaluate_composite_program(
             &circuit,
-            &vec![
+            &[
                 (expected & (1 << 0)) != 0,
                 (expected & (1 << 1)) != 0,
                 (expected & (1 << 2)) != 0,
                 (expected & (1 << 3)) != 0,
             ],
-            &vec![expected],
+            &[expected],
         );
     }
 

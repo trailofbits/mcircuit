@@ -1,6 +1,5 @@
 use crate::analysis::{AnalysisPass, WireCounter};
 use crate::{CombineOperation, Operation};
-use std::cmp::max;
 
 // Evaluates a composite program (in the clear)
 pub fn evaluate_composite_program(
@@ -87,8 +86,8 @@ pub fn evaluate_composite_program(
             CombineOperation::B2A(dst, low) => {
                 let mut running_val: u64 = 0;
                 let mut power: u64 = 1;
-                for bit in *low..(*low + 64) {
-                    running_val = running_val.wrapping_add(if bool_wires[bit] { power } else { 0 });
+                for bit in bool_wires.iter().skip(*low).take(64) {
+                    running_val = running_val.wrapping_add(if *bit { power } else { 0 });
                     power = power.wrapping_shl(1);
                 }
                 arith_wires[*dst] = running_val;
@@ -105,14 +104,10 @@ pub fn evaluate_composite_program(
     }
 }
 
-pub fn largest_wires_exhaustive(program: &[CombineOperation]) -> (usize, usize) {
-    WireCounter::default().analyze(program)
-}
-
 pub fn largest_wires(program: &[CombineOperation]) -> (usize, usize) {
     if let CombineOperation::SizeHint(z64_cells, gf2_cells) = program[0] {
         (z64_cells, gf2_cells)
     } else {
-        largest_wires_exhaustive(&program)
+        WireCounter::default().analyze(program)
     }
 }
