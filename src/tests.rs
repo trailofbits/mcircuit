@@ -32,7 +32,7 @@ mod tests {
             CombineOperation: From<Operation<T>>,
         {
             match Operation::<T>::random_variant(&mut thread_rng()) {
-                OpType::BinaryOp(ty) => {
+                OpType::Binary(ty) => {
                     let (out, in1, in2): (usize, usize, usize) = rand::random();
                     let gate = ty(out, in1, in2);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
@@ -42,7 +42,7 @@ mod tests {
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
-                OpType::BinaryConstOp(ty) => {
+                OpType::BinaryConst(ty) => {
                     let (out, in1, in2): (usize, usize, T) = rand::random();
                     let gate = ty(out, in1, in2);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
@@ -52,7 +52,7 @@ mod tests {
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
-                OpType::InputOp(ty) => {
+                OpType::Input(ty) => {
                     let out: usize = rand::random();
                     let gate = ty(out);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
@@ -62,7 +62,7 @@ mod tests {
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
-                OpType::InputConstOp(ty) => {
+                OpType::InputConst(ty) => {
                     let (out, in1): (usize, T) = rand::random();
                     let gate = ty(out, in1);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
@@ -72,7 +72,7 @@ mod tests {
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
-                OpType::OutputConstOp(ty) => {
+                OpType::OutputConst(ty) => {
                     let (in1, in2): (usize, T) = rand::random();
                     let gate = ty(in1, in2);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();

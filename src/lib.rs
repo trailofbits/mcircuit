@@ -40,15 +40,15 @@ pub enum Operation<T: WireValue> {
 #[derive(Clone, Copy)]
 enum OpType<T: WireValue> {
     /// (dst)
-    InputOp(fn(usize) -> Operation<T>),
+    Input(fn(usize) -> Operation<T>),
     /// (dst, constant)
-    InputConstOp(fn(usize, T) -> Operation<T>),
+    InputConst(fn(usize, T) -> Operation<T>),
     /// (src, constant)
-    OutputConstOp(fn(usize, T) -> Operation<T>),
+    OutputConst(fn(usize, T) -> Operation<T>),
     /// (dst, src1, src2)
-    BinaryOp(fn(usize, usize, usize) -> Operation<T>),
+    Binary(fn(usize, usize, usize) -> Operation<T>),
     /// (dst, src, constant)
-    BinaryConstOp(fn(usize, usize, T) -> Operation<T>),
+    BinaryConst(fn(usize, usize, T) -> Operation<T>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -72,16 +72,16 @@ pub enum CombineOperation {
 impl<T: WireValue> Operation<T> {
     fn random_variant<R: Rng + ?Sized>(rng: &mut R) -> OpType<T> {
         match rng.gen_range(0..Operation::<T>::VARIANT_COUNT) {
-            0 => OpType::InputOp(Operation::Input),
-            1 => OpType::InputOp(Operation::Random),
-            2 => OpType::BinaryOp(Operation::Add),
-            3 => OpType::BinaryConstOp(Operation::AddConst),
-            4 => OpType::BinaryOp(Operation::Sub),
-            5 => OpType::BinaryConstOp(Operation::SubConst),
-            6 => OpType::BinaryOp(Operation::Mul),
-            7 => OpType::BinaryConstOp(Operation::MulConst),
-            8 => OpType::OutputConstOp(Operation::AssertConst),
-            9 => OpType::InputConstOp(Operation::Const),
+            0 => OpType::Input(Operation::Input),
+            1 => OpType::Input(Operation::Random),
+            2 => OpType::Binary(Operation::Add),
+            3 => OpType::BinaryConst(Operation::AddConst),
+            4 => OpType::Binary(Operation::Sub),
+            5 => OpType::BinaryConst(Operation::SubConst),
+            6 => OpType::Binary(Operation::Mul),
+            7 => OpType::BinaryConst(Operation::MulConst),
+            8 => OpType::OutputConst(Operation::AssertConst),
+            9 => OpType::InputConst(Operation::Const),
             _ => {
                 unimplemented!("Operation.random_variant is missing some variants")
             }
@@ -99,23 +99,23 @@ impl<T: WireValue> Operation<T> {
         I2: Iterator<Item = usize>,
     {
         match ty {
-            OpType::InputOp(op) => op(outputs.next().expect("InputOp requires an output wire")),
-            OpType::InputConstOp(op) => op(
+            OpType::Input(op) => op(outputs.next().expect("InputOp requires an output wire")),
+            OpType::InputConst(op) => op(
                 outputs
                     .next()
                     .expect("InputConstOp requires an output wire"),
                 constant.expect("InputConstOp requires a constant operand"),
             ),
-            OpType::OutputConstOp(op) => op(
+            OpType::OutputConst(op) => op(
                 inputs.next().expect("OutputConstOp requires an input wire"),
                 constant.expect("OutputConstOp requires a constant operand"),
             ),
-            OpType::BinaryOp(op) => op(
+            OpType::Binary(op) => op(
                 outputs.next().expect("BinaryOp requires an output wire"),
                 inputs.next().expect("BinaryOp requires two input wires"),
                 inputs.next().expect("BinaryOp requires two input wires"),
             ),
-            OpType::BinaryConstOp(op) => op(
+            OpType::BinaryConst(op) => op(
                 outputs
                     .next()
                     .expect("BinaryConstOp requires an output wire"),
@@ -209,61 +209,61 @@ impl<T: WireValue> Translatable for Operation<T> {
     {
         match self {
             Operation::Input(_) => Some(Operation::<T>::construct(
-                OpType::InputOp(Operation::Input),
+                OpType::Input(Operation::Input),
                 win,
                 wout,
                 None,
             )),
             Operation::Random(_) => Some(Operation::<T>::construct(
-                OpType::InputOp(Operation::Random),
+                OpType::Input(Operation::Random),
                 win,
                 wout,
                 None,
             )),
             Operation::Add(_, _, _) => Some(Operation::<T>::construct(
-                OpType::BinaryOp(Operation::Add),
+                OpType::Binary(Operation::Add),
                 win,
                 wout,
                 None,
             )),
             Operation::AddConst(_, _, c) => Some(Operation::<T>::construct(
-                OpType::BinaryConstOp(Operation::AddConst),
+                OpType::BinaryConst(Operation::AddConst),
                 win,
                 wout,
                 Some(*c),
             )),
             Operation::Sub(_, _, _) => Some(Operation::<T>::construct(
-                OpType::BinaryOp(Operation::Sub),
+                OpType::Binary(Operation::Sub),
                 win,
                 wout,
                 None,
             )),
             Operation::SubConst(_, _, c) => Some(Operation::<T>::construct(
-                OpType::BinaryConstOp(Operation::SubConst),
+                OpType::BinaryConst(Operation::SubConst),
                 win,
                 wout,
                 Some(*c),
             )),
             Operation::Mul(_, _, _) => Some(Operation::<T>::construct(
-                OpType::BinaryOp(Operation::Mul),
+                OpType::Binary(Operation::Mul),
                 win,
                 wout,
                 None,
             )),
             Operation::MulConst(_, _, c) => Some(Operation::<T>::construct(
-                OpType::BinaryConstOp(Operation::MulConst),
+                OpType::BinaryConst(Operation::MulConst),
                 win,
                 wout,
                 Some(*c),
             )),
             Operation::AssertConst(_, c) => Some(Operation::<T>::construct(
-                OpType::OutputConstOp(Operation::AssertConst),
+                OpType::OutputConst(Operation::AssertConst),
                 win,
                 wout,
                 Some(*c),
             )),
             Operation::Const(_, c) => Some(Operation::<T>::construct(
-                OpType::InputConstOp(Operation::Const),
+                OpType::InputConst(Operation::Const),
                 win,
                 wout,
                 Some(*c),
