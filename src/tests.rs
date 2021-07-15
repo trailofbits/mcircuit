@@ -72,9 +72,9 @@ mod tests {
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
-                OpType::OutputConst(ty) => {
-                    let (in1, in2): (usize, T) = rand::random();
-                    let gate = ty(in1, in2);
+                OpType::Output(ty) => {
+                    let in1: usize = rand::random();
+                    let gate = ty(in1);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
                     assert_eq!(collected_inputs, vec![in1]);
@@ -240,10 +240,12 @@ mod tests {
         let circuit = vec![
             CombineOperation::GF2(Operation::Const(0, true)),
             CombineOperation::GF2(Operation::AddConst(1, 0, false)),
-            CombineOperation::GF2(Operation::AssertConst(1, true)),
+            CombineOperation::GF2(Operation::SubConst(2, 1, true)),
+            CombineOperation::GF2(Operation::AssertZero(2)),
             CombineOperation::Z64(Operation::Const(0, 15)),
             CombineOperation::Z64(Operation::AddConst(1, 0, 14)),
-            CombineOperation::Z64(Operation::AssertConst(1, 14 + 15)),
+            CombineOperation::Z64(Operation::SubConst(2, 1, 14 + 15)),
+            CombineOperation::Z64(Operation::AssertZero(2)),
         ];
 
         evaluate_composite_program(&circuit, &[], &[]);
@@ -255,16 +257,22 @@ mod tests {
             CombineOperation::GF2(Operation::Input(0)),
             CombineOperation::GF2(Operation::Input(1)),
             CombineOperation::GF2(Operation::Mul(2, 1, 0)),
-            CombineOperation::GF2(Operation::AssertConst(0, true)),
-            CombineOperation::GF2(Operation::AssertConst(1, true)),
-            CombineOperation::GF2(Operation::AssertConst(2, true)),
+            CombineOperation::GF2(Operation::SubConst(3, 0, true)),
+            CombineOperation::GF2(Operation::AssertZero(3)),
+            CombineOperation::GF2(Operation::SubConst(4, 1, true)),
+            CombineOperation::GF2(Operation::AssertZero(4)),
+            CombineOperation::GF2(Operation::SubConst(5, 2, true)),
+            CombineOperation::GF2(Operation::AssertZero(5)),
             // Similar Circuit in Z64
             CombineOperation::Z64(Operation::Input(0)),
             CombineOperation::Z64(Operation::Input(1)),
             CombineOperation::Z64(Operation::Mul(2, 1, 0)),
-            CombineOperation::Z64(Operation::AssertConst(0, 14)),
-            CombineOperation::Z64(Operation::AssertConst(1, 15)),
-            CombineOperation::Z64(Operation::AssertConst(2, 14 * 15)),
+            CombineOperation::Z64(Operation::SubConst(3, 0, 14)),
+            CombineOperation::Z64(Operation::AssertZero(3)),
+            CombineOperation::Z64(Operation::SubConst(4, 1, 15)),
+            CombineOperation::Z64(Operation::AssertZero(4)),
+            CombineOperation::Z64(Operation::SubConst(5, 2, 14 * 15)),
+            CombineOperation::Z64(Operation::AssertZero(5)),
         ];
 
         evaluate_composite_program(&circuit, &[true, true], &[14, 15]);
@@ -287,9 +295,11 @@ mod tests {
             CombineOperation::B2A(1, 0),
             CombineOperation::Z64(Operation::Input(2)),
             CombineOperation::Z64(Operation::Sub(3, 1, 2)),
-            CombineOperation::Z64(Operation::AssertConst(1, expected)),
-            CombineOperation::Z64(Operation::AssertConst(2, expected)),
-            CombineOperation::Z64(Operation::AssertConst(3, 0)),
+            CombineOperation::Z64(Operation::AssertZero(3)),
+            CombineOperation::Z64(Operation::SubConst(4, 1, expected)),
+            CombineOperation::Z64(Operation::AssertZero(4)),
+            CombineOperation::Z64(Operation::SubConst(5, 2, expected)),
+            CombineOperation::Z64(Operation::AssertZero(5)),
         ];
 
         evaluate_composite_program(

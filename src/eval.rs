@@ -43,8 +43,8 @@ pub fn evaluate_composite_program(
                 Operation::MulConst(dst, src, c) => {
                     bool_wires[dst] = bool_wires[src] & c;
                 }
-                Operation::AssertConst(src, c) => {
-                    assert_eq!(bool_wires[src], c);
+                Operation::AssertZero(src) => {
+                    assert!(!bool_wires[src]);
                 }
                 Operation::Const(dst, c) => {
                     bool_wires[dst] = c;
@@ -76,8 +76,8 @@ pub fn evaluate_composite_program(
                 Operation::MulConst(dst, src, c) => {
                     arith_wires[dst] = arith_wires[src].wrapping_mul(c);
                 }
-                Operation::AssertConst(src, c) => {
-                    assert_eq!(arith_wires[src], c);
+                Operation::AssertZero(src) => {
+                    assert_eq!(arith_wires[src], 0u64);
                 }
                 Operation::Const(dst, c) => {
                     arith_wires[dst] = c;

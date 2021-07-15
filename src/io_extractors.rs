@@ -77,7 +77,7 @@ impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
                     None
                 }
             }
-            Operation::AssertConst(a, _) => {
+            Operation::AssertZero(a) => {
                 if self.index == 0 {
                     Some(a)
                 } else {
@@ -152,7 +152,7 @@ impl<'a, T: WireValue> Iterator for OutputIterator<'a, Operation<T>> {
                     None
                 }
             }
-            Operation::AssertConst(_, _) => None,
+            Operation::AssertZero(_) => None,
             Operation::Const(a, _) => {
                 if self.index == 0 {
                     Some(a)

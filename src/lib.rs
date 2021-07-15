@@ -31,8 +31,8 @@ pub enum Operation<T: WireValue> {
     SubConst(usize, usize, T),
     Mul(usize, usize, usize),
     MulConst(usize, usize, T),
-    /// Assert that the wire has the const value
-    AssertConst(usize, T),
+    /// Assert that the wire has the const value zero
+    AssertZero(usize),
     /// Emit the const value on the wire
     Const(usize, T),
 }
@@ -44,7 +44,7 @@ enum OpType<T: WireValue> {
     /// (dst, constant)
     InputConst(fn(usize, T) -> Operation<T>),
     /// (src, constant)
-    OutputConst(fn(usize, T) -> Operation<T>),
+    Output(fn(usize) -> Operation<T>),
     /// (dst, src1, src2)
     Binary(fn(usize, usize, usize) -> Operation<T>),
     /// (dst, src, constant)
@@ -80,7 +80,7 @@ impl<T: WireValue> Operation<T> {
             5 => OpType::BinaryConst(Operation::SubConst),
             6 => OpType::Binary(Operation::Mul),
             7 => OpType::BinaryConst(Operation::MulConst),
-            8 => OpType::OutputConst(Operation::AssertConst),
+            8 => OpType::Output(Operation::AssertZero),
             9 => OpType::InputConst(Operation::Const),
             _ => {
                 unimplemented!("Operation.random_variant is missing some variants")
@@ -99,28 +99,27 @@ impl<T: WireValue> Operation<T> {
         I2: Iterator<Item = usize>,
     {
         match ty {
-            OpType::Input(op) => op(outputs.next().expect("InputOp requires an output wire")),
+            OpType::Input(op) => op(outputs.next().expect("Input op requires an output wire")),
             OpType::InputConst(op) => op(
                 outputs
                     .next()
-                    .expect("InputConstOp requires an output wire"),
-                constant.expect("InputConstOp requires a constant operand"),
+                    .expect("InputConst op requires an output wire"),
+                constant.expect("InputConst op requires a constant operand"),
             ),
-            OpType::OutputConst(op) => op(
-                inputs.next().expect("OutputConstOp requires an input wire"),
-                constant.expect("OutputConstOp requires a constant operand"),
-            ),
+            OpType::Output(op) => op(inputs.next().expect("Output op requires an input wire")),
             OpType::Binary(op) => op(
-                outputs.next().expect("BinaryOp requires an output wire"),
-                inputs.next().expect("BinaryOp requires two input wires"),
-                inputs.next().expect("BinaryOp requires two input wires"),
+                outputs.next().expect("Binary op requires an output wire"),
+                inputs.next().expect("Binary op requires two input wires"),
+                inputs.next().expect("Binary op requires two input wires"),
             ),
             OpType::BinaryConst(op) => op(
                 outputs
                     .next()
-                    .expect("BinaryConstOp requires an output wire"),
-                inputs.next().expect("BinaryConstOp requires an input wire"),
-                constant.expect("BinaryConstOp requires a constant operand"),
+                    .expect("BinaryConst op requires an output wire"),
+                inputs
+                    .next()
+                    .expect("BinaryConst op requires an input wire"),
+                constant.expect("BinaryConst op requires a constant operand"),
             ),
         }
     }
@@ -256,11 +255,11 @@ impl<T: WireValue> Translatable for Operation<T> {
                 wout,
                 Some(*c),
             )),
-            Operation::AssertConst(_, c) => Some(Operation::<T>::construct(
-                OpType::OutputConst(Operation::AssertConst),
+            Operation::AssertZero(_) => Some(Operation::<T>::construct(
+                OpType::Output(Operation::AssertZero),
                 win,
                 wout,
-                Some(*c),
+                None,
             )),
             Operation::Const(_, c) => Some(Operation::<T>::construct(
                 OpType::InputConst(Operation::Const),
