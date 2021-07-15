@@ -52,7 +52,7 @@ impl AnalysisPass for WireCounter {
                 Operation::MulConst(dst, src, _c) => {
                     self.bool_wires = max(self.bool_wires, max(dst, src));
                 }
-                Operation::AssertConst(src, _c) => {
+                Operation::AssertZero(src) => {
                     self.bool_wires = max(self.bool_wires, src);
                 }
                 Operation::Const(dst, _c) => {
@@ -84,7 +84,7 @@ impl AnalysisPass for WireCounter {
                 Operation::MulConst(dst, src, _c) => {
                     self.arith_wires = max(self.arith_wires, max(dst, src));
                 }
-                Operation::AssertConst(src, _c) => {
+                Operation::AssertZero(src) => {
                     self.arith_wires = max(self.arith_wires, src);
                 }
                 Operation::Const(dst, _c) => {
