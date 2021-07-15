@@ -6,7 +6,7 @@ mod eval;
 mod io_extractors;
 mod tests;
 
-pub use eval::evaluate_composite_program;
+pub use eval::{evaluate_composite_program, largest_wires};
 
 use crate::io_extractors::{InputIterator, OutputIterator};
 use rand::distributions::{Distribution, Standard};
