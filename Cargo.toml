@@ -16,5 +16,6 @@ edition = "2018"
 [dependencies]
 serde = {version = "1.0.126", features = ["derive"]}
 bincode = "1.3.3"
+num-traits = "0.2"
 variant_count = "1.1"
 rand = "0.8.4"

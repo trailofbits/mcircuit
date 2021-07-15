@@ -1,12 +1,16 @@
 #[cfg(test)]
 mod tests {
-    use crate::eval::{evaluate_composite_program, largest_wires};
-    use crate::{CombineOperation, HasIO, OpType, Operation, Translatable, WireValue};
-    use rand::distributions::{Distribution, Standard};
-    use rand::thread_rng;
     use std::array::IntoIter;
     use std::collections::HashMap;
     use std::iter::FromIterator;
+
+    use rand::distributions::{Distribution, Standard};
+    use rand::thread_rng;
+
+    use crate::eval::{evaluate_composite_program, largest_wires};
+    use crate::has_io::HasIO;
+    use crate::translatable::Translatable;
+    use crate::{CombineOperation, OpType, Operation, WireValue};
 
     #[test]
     fn test_io_operations() {
