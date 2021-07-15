@@ -132,6 +132,14 @@ pub trait HasIO {
     fn outputs(&self) -> OutputIterator<Self>
     where
         Self: Sized;
+
+    fn dst<'a>(&'a self) -> Option<usize>
+    where
+        Self: 'a + Sized,
+        OutputIterator<'a, Self>: Iterator<Item = usize>,
+    {
+        self.outputs().next()
+    }
 }
 
 pub trait Translatable {
