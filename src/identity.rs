@@ -2,8 +2,10 @@ use num_traits::{One, Zero};
 
 use crate::{CombineOperation, Operation};
 
-pub trait Identity {
+pub trait Identity<T> {
     fn is_identity(&self) -> bool;
+
+    fn identity(w_out: usize, w_in: usize) -> Self;
 }
 
 // /// Rustc won't let us use any generics here because `bool` might implement Zero and One in
@@ -20,7 +22,7 @@ pub trait Identity {
 //     }
 // }
 
-impl Identity for Operation<u64> {
+impl Identity<u64> for Operation<u64> {
     fn is_identity(&self) -> bool {
         match self {
             Operation::AddConst(_, _, c) => c.is_zero(),
@@ -29,9 +31,13 @@ impl Identity for Operation<u64> {
             _ => false,
         }
     }
+
+    fn identity(w_out: usize, w_in: usize) -> Self {
+        Self::AddConst(w_out, w_in, 0u64)
+    }
 }
 
-impl Identity for Operation<bool> {
+impl Identity<bool> for Operation<bool> {
     fn is_identity(&self) -> bool {
         match *self {
             Operation::AddConst(_, _, c) => !c,
@@ -40,15 +46,34 @@ impl Identity for Operation<bool> {
             _ => false,
         }
     }
+
+    fn identity(w_out: usize, w_in: usize) -> Self {
+        Self::AddConst(w_out, w_in, false)
+    }
 }
 
-impl Identity for CombineOperation {
+impl Identity<u64> for CombineOperation {
     fn is_identity(&self) -> bool {
         match self {
-            CombineOperation::GF2(g) => g.is_identity(),
-            CombineOperation::Z64(g) => g.is_identity(),
-            CombineOperation::B2A(_, _) => false,
-            CombineOperation::SizeHint(_, _) => false,
+            Self::Z64(g) => g.is_identity(),
+            _ => false,
         }
+    }
+
+    fn identity(w_out: usize, w_in: usize) -> Self {
+        Self::Z64(Operation::identity(w_out, w_in))
+    }
+}
+
+impl Identity<bool> for CombineOperation {
+    fn is_identity(&self) -> bool {
+        match self {
+            Self::GF2(g) => g.is_identity(),
+            _ => false,
+        }
+    }
+
+    fn identity(w_out: usize, w_in: usize) -> Self {
+        Self::GF2(Operation::identity(w_out, w_in))
     }
 }

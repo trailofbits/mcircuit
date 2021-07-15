@@ -158,7 +158,7 @@ where
     }
 }
 
-pub trait Gate<T>: HasIO + HasConst<T> + Translatable + Identity {}
+pub trait Gate<T>: HasIO + HasConst<T> + Translatable + Identity<T> {}
 impl Gate<u64> for Operation<u64> {}
 impl Gate<bool> for Operation<bool> {}
-impl<T: WireValue> Gate<T> for CombineOperation where CombineOperation: HasConst<T> {}
+impl<T: WireValue> Gate<T> for CombineOperation where CombineOperation: HasConst<T> + Identity<T> {}
