@@ -15,11 +15,11 @@ fn make_header(field_char: i32, field_deg: i32) -> Value {
         ("version".to_owned(), Value::String("1.0.0".to_owned())),
         (
             "field_characteristic".to_owned(),
-            Value::Array(vec![Value::Number(Number::from(field_char))])
+            Value::Array(vec![Value::Number(Number::from(field_char))]),
         ),
         (
             "field_degree".to_owned(),
-            Value::Number(Number::from(field_deg))
+            Value::Number(Number::from(field_deg)),
         ),
     ])))
 }
@@ -73,12 +73,10 @@ fn gate_to_json<T: WireValue>(gate: &Operation<T>) -> Value {
                 ),
             ]),
         )])),
-        Operation::AssertZero(i) => {
-            Map::from_iter(IntoIter::new([(
-                "AssertZero".to_owned(),
-                Value::Number(Number::from(i)),
-            )]))
-        }
+        Operation::AssertZero(i) => Map::from_iter(IntoIter::new([(
+            "AssertZero".to_owned(),
+            Value::Number(Number::from(i)),
+        )])),
         Operation::Const(o, val) => Map::from_iter(IntoIter::new([(
             "Constant".to_owned(),
             Value::Array(vec![
@@ -114,38 +112,48 @@ fn arith_circuit_to_json(gates: &[Operation<u64>]) -> Result<String> {
             "instances".to_owned(),
             Value::Array(vec![Value::Object(Map::from_iter(IntoIter::new([
                 ("header".to_owned(), make_header(FIELD_CHAR, FIELD_DEG)),
-                ("common_inputs".to_owned(), Value::Array(vec![
-                    Value::Array(vec![
+                (
+                    "common_inputs".to_owned(),
+                    Value::Array(vec![Value::Array(vec![
                         // Value::Number would go here
-                    ])
-                ])),
+                    ])]),
+                ),
             ])))]),
         ),
         (
             "witnesses".to_owned(),
             Value::Array(vec![Value::Object(Map::from_iter(IntoIter::new([
                 ("header".to_owned(), make_header(FIELD_CHAR, FIELD_DEG)),
-                ("short_witness".to_owned(), Value::Array(vec![
-                    Value::Array(vec![
+                (
+                    "short_witness".to_owned(),
+                    Value::Array(vec![Value::Array(vec![
                         // Value::Number would go here
-                    ])
-                ])),
+                    ])]),
+                ),
             ])))]),
         ),
         (
             "relations".to_owned(),
             Value::Array(vec![Value::Object(Map::from_iter(IntoIter::new([
                 ("header".to_owned(), make_header(FIELD_CHAR, FIELD_DEG)),
-                ("gate_mask".to_owned(), Value::Number(Number::from(GATE_MASK))),
-                ("feat_mask".to_owned(), Value::Number(Number::from(FEAT_MASK))),
-                ("functions".to_owned(), Value::Array(
-                    vec![
+                (
+                    "gate_mask".to_owned(),
+                    Value::Number(Number::from(GATE_MASK)),
+                ),
+                (
+                    "feat_mask".to_owned(),
+                    Value::Number(Number::from(FEAT_MASK)),
+                ),
+                (
+                    "functions".to_owned(),
+                    Value::Array(vec![
                         // Function objects would go here
-                    ]
-                )),
-                ("gates".to_owned(), Value::Array(
-                    gates.iter().map(|g| gate_to_json(g)).collect()
-                )),
+                    ]),
+                ),
+                (
+                    "gates".to_owned(),
+                    Value::Array(gates.iter().map(|g| gate_to_json(g)).collect()),
+                ),
             ])))]),
         ),
     ])));

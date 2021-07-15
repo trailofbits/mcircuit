@@ -1,12 +1,16 @@
 #[cfg(test)]
 mod tests {
-    use crate::eval::{evaluate_composite_program, largest_wires};
-    use crate::{CombineOperation, HasIO, OpType, Operation, Translatable, WireValue};
-    use rand::distributions::{Distribution, Standard};
-    use rand::thread_rng;
     use std::array::IntoIter;
     use std::collections::HashMap;
     use std::iter::FromIterator;
+
+    use rand::distributions::{Distribution, Standard};
+    use rand::thread_rng;
+
+    use crate::eval::{evaluate_composite_program, largest_wires};
+    use crate::has_io::HasIO;
+    use crate::translatable::Translatable;
+    use crate::{CombineOperation, OpType, Operation, WireValue};
 
     #[test]
     fn test_io_operations() {
@@ -39,6 +43,7 @@ mod tests {
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
                     assert_eq!(collected_inputs, vec![in1, in2]);
                     assert_eq!(collected_outputs, vec![out]);
+                    assert_eq!(gate.dst().unwrap(), out);
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
@@ -49,6 +54,7 @@ mod tests {
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
                     assert_eq!(collected_inputs, vec![in1]);
                     assert_eq!(collected_outputs, vec![out]);
+                    assert_eq!(gate.dst().unwrap(), out);
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
@@ -59,6 +65,7 @@ mod tests {
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
                     assert!(collected_inputs.is_empty());
                     assert_eq!(collected_outputs, vec![out]);
+                    assert_eq!(gate.dst().unwrap(), out);
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
@@ -69,6 +76,7 @@ mod tests {
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
                     assert!(collected_inputs.is_empty());
                     assert_eq!(collected_outputs, vec![out]);
+                    assert_eq!(gate.dst().unwrap(), out);
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
@@ -79,6 +87,7 @@ mod tests {
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
                     assert_eq!(collected_inputs, vec![in1]);
                     assert!(collected_outputs.is_empty());
+                    assert!(gate.dst().is_none());
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
                 }
