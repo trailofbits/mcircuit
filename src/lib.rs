@@ -14,13 +14,13 @@ pub use translatable::Translatable;
 
 mod analysis;
 mod eval;
-mod export_json;
 mod has_const;
 mod has_io;
 mod identity;
 mod io_extractors;
 mod tests;
 mod translatable;
+mod parsers;
 
 pub trait WireValue: Copy + PartialEq + std::fmt::Debug {
     fn is_zero(&self) -> bool;

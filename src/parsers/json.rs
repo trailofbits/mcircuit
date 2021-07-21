@@ -197,7 +197,7 @@ fn bool_circuit_to_json(gates: &[Operation<bool>], bool_witness: &[bool]) -> Res
 
 #[cfg(test)]
 mod tests {
-    use crate::export_json::bool_circuit_to_json;
+    use crate::parsers::json::bool_circuit_to_json;
     use crate::Operation;
 
     #[test]
