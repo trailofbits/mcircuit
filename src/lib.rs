@@ -18,9 +18,9 @@ mod has_const;
 mod has_io;
 mod identity;
 mod io_extractors;
+mod parsers;
 mod tests;
 mod translatable;
-mod parsers;
 
 pub trait WireValue: Copy + PartialEq + std::fmt::Debug {
     fn is_zero(&self) -> bool;

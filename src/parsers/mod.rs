@@ -6,9 +6,9 @@ use std::io::BufReader;
 
 use crate::{Operation, WireValue};
 
-mod smtlib;
-mod json;
 mod blif;
+mod json;
+mod smtlib;
 
 trait Parse<T: WireValue> {
     fn new(reader: BufReader<File>) -> Self;
@@ -22,7 +22,7 @@ struct WireHasher {
 
 impl WireHasher {
     fn new() -> Self {
-        WireHasher{
+        WireHasher {
             hashes: HashMap::new(),
         }
     }
@@ -36,7 +36,7 @@ impl WireHasher {
     }
 }
 
-impl Default for WireHasher{
+impl Default for WireHasher {
     fn default() -> Self {
         WireHasher::new()
     }

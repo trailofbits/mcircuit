@@ -1,16 +1,16 @@
-use std::io::BufReader;
-use std::fs::File;
-use crate::parsers::{WireHasher, Parse};
+use crate::parsers::{Parse, WireHasher};
 use crate::Operation;
+use std::fs::File;
+use std::io::BufReader;
 
-struct BlifParser{
+struct BlifParser {
     reader: BufReader<File>,
-    hasher: WireHasher
+    hasher: WireHasher,
 }
 
 impl Parse<bool> for BlifParser {
     fn new(reader: BufReader<File>) -> Self {
-        BlifParser{
+        BlifParser {
             reader,
             hasher: Default::default(),
         }
@@ -23,7 +23,7 @@ impl Parse<bool> for BlifParser {
 
 impl Parse<u64> for BlifParser {
     fn new(reader: BufReader<File>) -> Self {
-        BlifParser{
+        BlifParser {
             reader,
             hasher: Default::default(),
         }
