@@ -10,6 +10,8 @@ struct SMTLibParser {
 }
 
 impl Parse<bool> for SMTLibParser {
+    type Item = Operation<bool>;
+
     fn new(reader: BufReader<File>) -> Self {
         SMTLibParser {
             reader,

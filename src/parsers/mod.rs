@@ -4,16 +4,18 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::BufReader;
 
-use crate::{Operation, WireValue};
+use crate::WireValue;
 
 mod blif;
 mod json;
 mod smtlib;
 
 trait Parse<T: WireValue> {
+    type Item;
+
     fn new(reader: BufReader<File>) -> Self;
 
-    fn next(&mut self) -> Option<Operation<T>>;
+    fn next(&mut self) -> Option<Self::Item>;
 }
 
 struct WireHasher {
