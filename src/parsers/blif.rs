@@ -10,7 +10,7 @@ use crate::WireValue;
 use crate::{OpType, Operation};
 use num_traits::Zero;
 
-fn parse_split(pair: &str) -> (&str, &str) {
+pub fn parse_split(pair: &str) -> (&str, &str) {
     let mut split = pair.split('=');
     (split.next().unwrap(), split.next().unwrap())
 }
@@ -92,7 +92,7 @@ pub trait CanConstructVariant<T: WireValue> {
 
 pub struct BlifParser<T: WireValue> {
     reader: Option<BufReader<File>>,
-    hasher: WireHasher,
+    pub hasher: WireHasher,
     parsed: bool,
     circuit: Vec<BlifCircuitDesc<T>>,
 }

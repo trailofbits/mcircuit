@@ -17,7 +17,7 @@ pub trait Parse<T: WireValue> {
     fn next(&mut self) -> Option<Self::Item>;
 }
 
-struct WireHasher {
+pub struct WireHasher {
     hashes: HashMap<usize, usize>,
 }
 
@@ -28,7 +28,7 @@ impl WireHasher {
         }
     }
 
-    fn get_wire_id(&mut self, name: &str) -> usize {
+    pub fn get_wire_id(&mut self, name: &str) -> usize {
         let mut s = DefaultHasher::new();
         name.hash(&mut s);
         let len = self.hashes.len();
