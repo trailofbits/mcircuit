@@ -8,6 +8,7 @@ use std::mem::take;
 use crate::parsers::{Parse, WireHasher};
 use crate::WireValue;
 use crate::{OpType, Operation};
+use num_traits::Zero;
 
 fn parse_split(pair: &str) -> (&str, &str) {
     let mut split = pair.split('=');
@@ -80,7 +81,13 @@ impl<T: WireValue> Default for BlifCircuitDesc<T> {
 }
 
 pub trait CanConstructVariant<T: WireValue> {
-    fn construct_variant(&mut self, op: &str, out: usize, inputs: Vec<usize>) -> Operation<T>;
+    fn construct_variant(
+        &mut self,
+        op: &str,
+        out: usize,
+        inputs: &[usize],
+        cons: Option<T>,
+    ) -> Operation<T>;
 }
 
 pub struct BlifParser<T: WireValue> {
@@ -102,13 +109,49 @@ impl<T: WireValue> Default for BlifParser<T> {
 }
 
 impl CanConstructVariant<bool> for BlifParser<bool> {
-    fn construct_variant(&mut self, op: &str, out: usize, inputs: Vec<usize>) -> Operation<bool> {
+    fn construct_variant(
+        &mut self,
+        op: &str,
+        out: usize,
+        inputs: &[usize],
+        cons: Option<bool>,
+    ) -> Operation<bool> {
         match op {
-            "AND" => Operation::construct(
+            "AND" | "MUL" => Operation::construct(
                 OpType::Binary(Operation::Mul),
                 inputs.iter().copied(),
                 vec![out].iter().copied(),
                 None,
+            ),
+            "XOR" | "ADD" => Operation::construct(
+                OpType::Binary(Operation::Add),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                None,
+            ),
+            "NOT" | "INV" => Operation::construct(
+                OpType::BinaryConst(Operation::AddConst),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                Some(true),
+            ),
+            "BUF" => Operation::construct(
+                OpType::BinaryConst(Operation::AddConst),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                Some(false),
+            ),
+            "RAND" => Operation::construct(
+                OpType::Input(Operation::Random),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                None,
+            ),
+            "CONST" => Operation::construct(
+                OpType::InputConst(Operation::Const),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                cons,
             ),
             _ => unimplemented!("Unsupported gate type: {}", op),
         }
@@ -116,13 +159,67 @@ impl CanConstructVariant<bool> for BlifParser<bool> {
 }
 
 impl CanConstructVariant<u64> for BlifParser<u64> {
-    fn construct_variant(&mut self, op: &str, out: usize, inputs: Vec<usize>) -> Operation<u64> {
+    fn construct_variant(
+        &mut self,
+        op: &str,
+        out: usize,
+        inputs: &[usize],
+        cons: Option<u64>,
+    ) -> Operation<u64> {
         match op {
             "MUL" => Operation::construct(
                 OpType::Binary(Operation::Mul),
                 inputs.iter().copied(),
                 vec![out].iter().copied(),
                 None,
+            ),
+            "MULC" => Operation::construct(
+                OpType::BinaryConst(Operation::MulConst),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                cons,
+            ),
+            "ADD" => Operation::construct(
+                OpType::Binary(Operation::Add),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                None,
+            ),
+            "ADDC" => Operation::construct(
+                OpType::BinaryConst(Operation::AddConst),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                cons,
+            ),
+            "SUB" => Operation::construct(
+                OpType::Binary(Operation::Sub),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                None,
+            ),
+            "SUBC" => Operation::construct(
+                OpType::BinaryConst(Operation::SubConst),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                cons,
+            ),
+            "BUF" => Operation::construct(
+                OpType::BinaryConst(Operation::AddConst),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                Some(u64::zero()),
+            ),
+            "RAND" => Operation::construct(
+                OpType::Input(Operation::Random),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                None,
+            ),
+            "CONST" => Operation::construct(
+                OpType::InputConst(Operation::Const),
+                inputs.iter().copied(),
+                vec![out].iter().copied(),
+                cons,
             ),
             _ => unimplemented!("Unsupported gate type: {}", op),
         }
@@ -172,13 +269,13 @@ where
                     ".gate" => {
                         let (op, out, mut inputs) = parse_gate(line);
                         let out_id = self.hasher.get_wire_id(out);
-                        let input_ids = inputs
+                        let input_ids: Vec<usize> = inputs
                             .drain(..)
                             .map(|name| self.hasher.get_wire_id(name))
                             .collect();
                         current
                             .gates
-                            .push(self.construct_variant(op, out_id, input_ids));
+                            .push(self.construct_variant(op, out_id, &input_ids, None));
                     }
                     ".subckt" => {
                         let (name, mut io_pairings) = parse_subcircuit(line);
@@ -198,7 +295,11 @@ where
                         })
                     }
                     ".names" | ".conn" => {
-                        unimplemented!("Time to go do the buffer gate thing")
+                        let from = self.hasher.get_wire_id(line.pop_front().unwrap());
+                        let to = self.hasher.get_wire_id(line.pop_back().unwrap());
+                        current
+                            .gates
+                            .push(self.construct_variant("BUF", to, &[from], None))
                     }
                     ".end" => {
                         self.circuit.push(take(&mut current));
