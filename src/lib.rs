@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate variant_count;
 
+use num_traits::Zero;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,7 @@ pub use eval::{evaluate_composite_program, largest_wires};
 pub use has_const::HasConst;
 pub use has_io::HasIO;
 pub use identity::Identity;
+pub use parsers::Parse;
 pub use translatable::Translatable;
 
 mod analysis;
@@ -17,12 +19,35 @@ mod has_const;
 mod has_io;
 mod identity;
 mod io_extractors;
+pub mod parsers;
 mod tests;
 mod translatable;
 
-pub trait WireValue: Copy + PartialEq + std::fmt::Debug {}
-impl WireValue for bool {}
-impl WireValue for u64 {}
+pub trait WireValue: Copy + PartialEq + std::fmt::Debug + Serialize {
+    fn is_zero(&self) -> bool;
+
+    fn to_le_bytes(&self) -> [u8; 8];
+}
+
+impl WireValue for bool {
+    fn is_zero(&self) -> bool {
+        !*self
+    }
+
+    fn to_le_bytes(&self) -> [u8; 8] {
+        [if *self { 1u8 } else { 0u8 }, 0, 0, 0, 0, 0, 0, 0]
+    }
+}
+
+impl WireValue for u64 {
+    fn is_zero(&self) -> bool {
+        Zero::is_zero(self)
+    }
+
+    fn to_le_bytes(&self) -> [u8; 8] {
+        u64::to_le_bytes(*self)
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, VariantCount)]
 pub enum Operation<T: WireValue> {

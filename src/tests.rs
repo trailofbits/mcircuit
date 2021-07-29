@@ -63,7 +63,7 @@ mod tests {
                     let gate = ty(out);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
-                    assert_eq!(collected_inputs, vec![]);
+                    assert!(collected_inputs.is_empty());
                     assert_eq!(collected_outputs, vec![out]);
                     assert_eq!(gate.dst().unwrap(), out);
 
@@ -74,7 +74,7 @@ mod tests {
                     let gate = ty(out, in1);
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
-                    assert_eq!(collected_inputs, vec![]);
+                    assert!(collected_inputs.is_empty());
                     assert_eq!(collected_outputs, vec![out]);
                     assert_eq!(gate.dst().unwrap(), out);
 
@@ -86,7 +86,7 @@ mod tests {
                     let collected_inputs: Vec<usize> = gate.inputs().collect();
                     let collected_outputs: Vec<usize> = gate.outputs().collect();
                     assert_eq!(collected_inputs, vec![in1]);
-                    assert_eq!(collected_outputs, vec![]);
+                    assert!(collected_outputs.is_empty());
                     assert!(gate.dst().is_none());
 
                     check_combine::<T>(gate, collected_inputs, collected_outputs);
@@ -122,8 +122,8 @@ mod tests {
             let gate = CombineOperation::SizeHint(out, low);
             let collected_inputs: Vec<usize> = gate.inputs().collect();
             let collected_outputs: Vec<usize> = gate.outputs().collect();
-            assert_eq!(collected_inputs, vec![]);
-            assert_eq!(collected_outputs, vec![]);
+            assert!(collected_inputs.is_empty());
+            assert!(collected_outputs.is_empty());
         }
     }
 
