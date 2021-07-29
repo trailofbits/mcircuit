@@ -307,6 +307,7 @@ where
                     _ => (),
                 }
             }
+            self.circuit.reverse();
         }
     }
 }
