@@ -43,17 +43,19 @@ fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     (name, io)
 }
 
-struct BlifCircuitDesc<T: WireValue> {
-    name: String,
-    inputs: Vec<usize>,
-    outputs: Vec<usize>,
-    gates: Vec<Operation<T>>,
-    subcircuits: Vec<BlifSubcircuitDesc>,
+#[derive(Clone)]
+pub struct BlifCircuitDesc<T: WireValue> {
+    pub name: String,
+    pub inputs: Vec<usize>,
+    pub outputs: Vec<usize>,
+    pub gates: Vec<Operation<T>>,
+    pub subcircuits: Vec<BlifSubcircuitDesc>,
 }
 
-struct BlifSubcircuitDesc {
-    name: String,
-    connections: Vec<(usize, usize)>,
+#[derive(Clone)]
+pub struct BlifSubcircuitDesc {
+    pub name: String,
+    pub connections: Vec<(usize, usize)>,
 }
 
 impl Default for BlifSubcircuitDesc {
@@ -77,11 +79,11 @@ impl<T: WireValue> Default for BlifCircuitDesc<T> {
     }
 }
 
-trait CanConstructVariant<T: WireValue> {
+pub trait CanConstructVariant<T: WireValue> {
     fn construct_variant(&mut self, op: &str, out: usize, inputs: Vec<usize>) -> Operation<T>;
 }
 
-struct BlifParser<T: WireValue> {
+pub struct BlifParser<T: WireValue> {
     reader: Option<BufReader<File>>,
     hasher: WireHasher,
     parsed: bool,

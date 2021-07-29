@@ -6,11 +6,11 @@ use std::io::BufReader;
 
 use crate::WireValue;
 
-mod blif;
+pub mod blif;
 mod json;
 mod smtlib;
 
-trait Parse<T: WireValue> {
+pub trait Parse<T: WireValue> {
     type Item;
 
     fn new(reader: BufReader<File>) -> Self;

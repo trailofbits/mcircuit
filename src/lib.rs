@@ -10,6 +10,7 @@ pub use eval::{evaluate_composite_program, largest_wires};
 pub use has_const::HasConst;
 pub use has_io::HasIO;
 pub use identity::Identity;
+pub use parsers::Parse;
 pub use translatable::Translatable;
 
 mod analysis;
@@ -18,11 +19,11 @@ mod has_const;
 mod has_io;
 mod identity;
 mod io_extractors;
-mod parsers;
+pub mod parsers;
 mod tests;
 mod translatable;
 
-pub trait WireValue: Copy + PartialEq + std::fmt::Debug {
+pub trait WireValue: Copy + PartialEq + std::fmt::Debug + Serialize {
     fn is_zero(&self) -> bool;
 
     fn to_le_bytes(&self) -> [u8; 8];
