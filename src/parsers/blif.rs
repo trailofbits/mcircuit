@@ -146,66 +146,64 @@ where
 
             let mut current: BlifCircuitDesc<T> = Default::default();
 
-            for line in reader.unwrap().lines() {
-                if let Ok(line) = line {
-                    let mut line: VecDeque<&str> = line.trim().split(' ').collect();
-                    let cmd = line.pop_front().unwrap();
-                    match cmd {
-                        ".model" => {
-                            current.name = line.pop_front().unwrap().into();
-                        }
-                        ".inputs" => {
-                            for chunk in parse_io(line) {
-                                for name in chunk.iter().rev() {
-                                    let id = self.hasher.get_wire_id(name);
-                                    current.inputs.push(id);
-                                }
-                            }
-                        }
-                        ".outputs" => {
-                            for chunk in parse_io(line) {
-                                for name in chunk.iter().rev() {
-                                    let id = self.hasher.get_wire_id(name);
-                                    current.outputs.push(id);
-                                }
-                            }
-                        }
-                        ".gate" => {
-                            let (op, out, mut inputs) = parse_gate(line);
-                            let out_id = self.hasher.get_wire_id(out);
-                            let input_ids = inputs
-                                .drain(..)
-                                .map(|name| self.hasher.get_wire_id(name))
-                                .collect();
-                            current
-                                .gates
-                                .push(self.construct_variant(op, out_id, input_ids));
-                        }
-                        ".subckt" => {
-                            let (name, mut io_pairings) = parse_subcircuit(line);
-                            let connections = io_pairings
-                                .drain(..)
-                                .map(|(child_name, parent_name)| {
-                                    (
-                                        self.hasher.get_wire_id(parent_name),
-                                        self.hasher.get_wire_id(child_name),
-                                    )
-                                })
-                                .collect();
-
-                            current.subcircuits.push(BlifSubcircuitDesc {
-                                name: name.into(),
-                                connections,
-                            })
-                        }
-                        ".names" | ".conn" => {
-                            unimplemented!("Time to go do the buffer gate thing")
-                        }
-                        ".end" => {
-                            self.circuit.push(take(&mut current));
-                        }
-                        _ => (),
+            for line in reader.unwrap().lines().flatten() {
+                let mut line: VecDeque<&str> = line.trim().split(' ').collect();
+                let cmd = line.pop_front().unwrap();
+                match cmd {
+                    ".model" => {
+                        current.name = line.pop_front().unwrap().into();
                     }
+                    ".inputs" => {
+                        for chunk in parse_io(line) {
+                            for name in chunk.iter().rev() {
+                                let id = self.hasher.get_wire_id(name);
+                                current.inputs.push(id);
+                            }
+                        }
+                    }
+                    ".outputs" => {
+                        for chunk in parse_io(line) {
+                            for name in chunk.iter().rev() {
+                                let id = self.hasher.get_wire_id(name);
+                                current.outputs.push(id);
+                            }
+                        }
+                    }
+                    ".gate" => {
+                        let (op, out, mut inputs) = parse_gate(line);
+                        let out_id = self.hasher.get_wire_id(out);
+                        let input_ids = inputs
+                            .drain(..)
+                            .map(|name| self.hasher.get_wire_id(name))
+                            .collect();
+                        current
+                            .gates
+                            .push(self.construct_variant(op, out_id, input_ids));
+                    }
+                    ".subckt" => {
+                        let (name, mut io_pairings) = parse_subcircuit(line);
+                        let connections = io_pairings
+                            .drain(..)
+                            .map(|(child_name, parent_name)| {
+                                (
+                                    self.hasher.get_wire_id(parent_name),
+                                    self.hasher.get_wire_id(child_name),
+                                )
+                            })
+                            .collect();
+
+                        current.subcircuits.push(BlifSubcircuitDesc {
+                            name: name.into(),
+                            connections,
+                        })
+                    }
+                    ".names" | ".conn" => {
+                        unimplemented!("Time to go do the buffer gate thing")
+                    }
+                    ".end" => {
+                        self.circuit.push(take(&mut current));
+                    }
+                    _ => (),
                 }
             }
         }

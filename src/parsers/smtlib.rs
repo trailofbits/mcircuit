@@ -4,6 +4,7 @@ use std::io::BufReader;
 use crate::parsers::{Parse, WireHasher};
 use crate::Operation;
 
+#[allow(dead_code)] // TODO: remove once implemented
 struct SMTLibParser {
     reader: BufReader<File>,
     hasher: WireHasher,

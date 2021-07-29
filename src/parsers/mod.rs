@@ -7,7 +7,6 @@ use std::io::BufReader;
 use crate::WireValue;
 
 pub mod blif;
-mod json;
 mod smtlib;
 
 pub trait Parse<T: WireValue> {
