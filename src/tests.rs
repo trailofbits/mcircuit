@@ -7,7 +7,7 @@ mod tests {
     use rand::distributions::{Distribution, Standard};
     use rand::thread_rng;
 
-    use crate::eval::{evaluate_composite_program, largest_wires};
+    use crate::eval::{evaluate_composite_program, largest_wires, smallest_wires};
     use crate::has_io::HasIO;
     use crate::translatable::Translatable;
     use crate::{CombineOperation, OpType, Operation, WireValue};
@@ -164,6 +164,20 @@ mod tests {
 
             assert_eq!(gate, identity);
             assert_eq!(translation_target, translated);
+
+            assert_eq!(
+                Operation::<bool>::Add(4, 3, 2)
+                    .translate([7, 8].iter().copied(), [0].iter().copied())
+                    .unwrap(),
+                Operation::<bool>::Add(0, 7, 8)
+            );
+
+            assert_eq!(
+                CombineOperation::GF2(Operation::<bool>::Add(4, 3, 2))
+                    .translate([7, 8].iter().copied(), [0].iter().copied())
+                    .unwrap(),
+                CombineOperation::GF2(Operation::<bool>::Add(0, 7, 8))
+            );
 
             // Test hashmap translation
             let translated_via_hashmap = gate
@@ -329,6 +343,8 @@ mod tests {
             CombineOperation::GF2(Operation::Input(99)),
             CombineOperation::Z64(Operation::Input(199)),
         ];
+
+        assert_eq!((199, 99), smallest_wires(&circuit));
 
         assert_eq!((200, 100), largest_wires(&circuit));
         circuit.insert(0, CombineOperation::SizeHint(400, 300));

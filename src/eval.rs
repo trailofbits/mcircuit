@@ -108,6 +108,10 @@ pub fn largest_wires(program: &[CombineOperation]) -> (usize, usize) {
     if let CombineOperation::SizeHint(z64_cells, gf2_cells) = program[0] {
         (z64_cells, gf2_cells)
     } else {
-        WireCounter::default().analyze(program)
+        WireCounter::default().analyze(program).0
     }
+}
+
+pub fn smallest_wires(program: &[CombineOperation]) -> (usize, usize) {
+    WireCounter::default().analyze(program).1
 }

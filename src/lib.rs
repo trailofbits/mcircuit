@@ -6,7 +6,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-pub use eval::{evaluate_composite_program, largest_wires};
+pub use eval::{evaluate_composite_program, largest_wires, smallest_wires};
 pub use has_const::HasConst;
 pub use has_io::HasIO;
 pub use identity::Identity;

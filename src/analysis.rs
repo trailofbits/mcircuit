@@ -1,5 +1,5 @@
-use crate::{CombineOperation, Operation};
-use std::cmp::max;
+use crate::{CombineOperation, HasIO};
+use std::cmp::{max, min};
 
 pub trait AnalysisPass {
     type Output;
@@ -18,91 +18,47 @@ pub trait AnalysisPass {
 
 #[derive(Default)]
 pub struct WireCounter {
-    arith_wires: usize,
-    bool_wires: usize,
+    largest_arith: usize,
+    largest_bool: usize,
+    smallest_arith: usize,
+    smallest_bool: usize,
 }
 
 impl AnalysisPass for WireCounter {
-    type Output = (usize, usize);
+    type Output = ((usize, usize), (usize, usize));
 
     fn analyze_gate(&mut self, gate: &CombineOperation) {
         match gate {
-            CombineOperation::GF2(gf2_insn) => match *gf2_insn {
-                Operation::Input(dst) => {
-                    self.bool_wires = max(self.bool_wires, dst);
+            CombineOperation::GF2(gf2_insn) => {
+                for i in gf2_insn.inputs().chain(gf2_insn.outputs()) {
+                    self.largest_bool = max(self.largest_bool, i);
+                    self.smallest_bool = min(self.smallest_bool, i);
                 }
-                Operation::Random(dst) => {
-                    self.bool_wires = max(self.bool_wires, dst);
+            }
+            CombineOperation::Z64(z64_insn) => {
+                for i in z64_insn.inputs().chain(z64_insn.outputs()) {
+                    self.largest_arith = max(self.largest_arith, i);
+                    self.smallest_arith = min(self.smallest_arith, i);
                 }
-                Operation::Add(dst, src1, src2) => {
-                    self.bool_wires = max(self.bool_wires, max(dst, max(src1, src2)));
-                }
-                Operation::Sub(dst, src1, src2) => {
-                    self.bool_wires = max(self.bool_wires, max(dst, max(src1, src2)));
-                }
-                Operation::Mul(dst, src1, src2) => {
-                    self.bool_wires = max(self.bool_wires, max(dst, max(src1, src2)));
-                }
-                Operation::AddConst(dst, src, _c) => {
-                    self.bool_wires = max(self.bool_wires, max(dst, src));
-                }
-                Operation::SubConst(dst, src, _c) => {
-                    self.bool_wires = max(self.bool_wires, max(dst, src));
-                }
-                Operation::MulConst(dst, src, _c) => {
-                    self.bool_wires = max(self.bool_wires, max(dst, src));
-                }
-                Operation::AssertZero(src) => {
-                    self.bool_wires = max(self.bool_wires, src);
-                }
-                Operation::Const(dst, _c) => {
-                    self.bool_wires = max(self.bool_wires, dst);
-                }
-            },
-            CombineOperation::Z64(z64_insn) => match *z64_insn {
-                Operation::Input(dst) => {
-                    self.arith_wires = max(self.arith_wires, dst);
-                }
-                Operation::Random(dst) => {
-                    self.arith_wires = max(self.arith_wires, dst);
-                }
-                Operation::Add(dst, src1, src2) => {
-                    self.arith_wires = max(self.arith_wires, max(dst, max(src1, src2)));
-                }
-                Operation::Sub(dst, src1, src2) => {
-                    self.arith_wires = max(self.arith_wires, max(dst, max(src1, src2)));
-                }
-                Operation::Mul(dst, src1, src2) => {
-                    self.arith_wires = max(self.arith_wires, max(dst, max(src1, src2)));
-                }
-                Operation::AddConst(dst, src, _c) => {
-                    self.arith_wires = max(self.arith_wires, max(dst, src));
-                }
-                Operation::SubConst(dst, src, _c) => {
-                    self.arith_wires = max(self.arith_wires, max(dst, src));
-                }
-                Operation::MulConst(dst, src, _c) => {
-                    self.arith_wires = max(self.arith_wires, max(dst, src));
-                }
-                Operation::AssertZero(src) => {
-                    self.arith_wires = max(self.arith_wires, src);
-                }
-                Operation::Const(dst, _c) => {
-                    self.arith_wires = max(self.arith_wires, dst);
-                }
-            },
+            }
             CombineOperation::B2A(dst, low) => {
-                self.arith_wires = max(self.arith_wires, *dst);
-                self.bool_wires = max(self.bool_wires, *low + 63);
+                self.largest_arith = max(self.largest_arith, *dst);
+                self.largest_bool = max(self.largest_bool, *low + 63);
+
+                self.smallest_arith = min(self.smallest_arith, *dst);
+                self.smallest_arith = min(self.smallest_arith, *low);
             }
             CombineOperation::SizeHint(z64, gf2) => {
-                self.arith_wires = max(self.arith_wires, *z64);
-                self.bool_wires = max(self.bool_wires, *gf2);
+                self.largest_arith = max(self.largest_arith, *z64);
+                self.largest_bool = max(self.largest_bool, *gf2);
             }
         }
     }
 
     fn finish_analysis(&self) -> Self::Output {
-        (self.arith_wires + 1, self.bool_wires + 1)
+        (
+            (self.largest_arith + 1, self.largest_bool + 1),
+            (self.smallest_arith, self.smallest_bool),
+        )
     }
 }
