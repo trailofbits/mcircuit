@@ -16,12 +16,22 @@ pub trait AnalysisPass {
     }
 }
 
-#[derive(Default)]
 pub struct WireCounter {
     largest_arith: usize,
     largest_bool: usize,
     smallest_arith: usize,
     smallest_bool: usize,
+}
+
+impl Default for WireCounter {
+    fn default() -> Self {
+        WireCounter {
+            largest_arith: usize::MIN,
+            largest_bool: usize::MIN,
+            smallest_arith: usize::MAX,
+            smallest_bool: usize::MAX,
+        }
+    }
 }
 
 impl AnalysisPass for WireCounter {
