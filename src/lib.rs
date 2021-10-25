@@ -15,6 +15,7 @@ pub use translatable::Translatable;
 
 mod analysis;
 mod eval;
+pub mod exporters;
 mod has_const;
 mod has_io;
 mod identity;
@@ -49,7 +50,7 @@ impl WireValue for u64 {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, VariantCount)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, VariantCount)]
 pub enum Operation<T: WireValue> {
     /// Read a value from input and emit it on the wire
     Input(usize),
@@ -82,7 +83,7 @@ enum OpType<T: WireValue> {
     BinaryConst(fn(usize, usize, T) -> Operation<T>),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum CombineOperation {
     /// Circuit Operation on GF2 Finite Field
     GF2(Operation<bool>),

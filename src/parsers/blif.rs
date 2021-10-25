@@ -343,7 +343,7 @@ mod tests {
     fn test_gate_parsing() {
         let line: VecDeque<&str> = "AND A=InputA B=InputB OUT=Output"
             .trim()
-            .split(" ")
+            .split(' ')
             .collect();
         let (op, out, inputs) = parse_gate(line);
         assert_eq!(op, "AND");
@@ -355,7 +355,7 @@ mod tests {
     fn test_io_parsing() {
         let line: VecDeque<&str> = "X[0] X[1] X[2] X[3] Y[0] Y[1] Y[2] Y[3] C_"
             .trim()
-            .split(" ")
+            .split(' ')
             .collect();
         let chunks = parse_io(line);
         assert_eq!(
@@ -372,7 +372,7 @@ mod tests {
     fn test_subcircuit_parsing() {
         let line: VecDeque<&str> = "memTraceEntryEncoder address[0]=src_read_address[0] address[1]=src_read_address[1] address[2]=src_read_address[2]"
             .trim()
-            .split(" ")
+            .split(' ')
             .collect();
         let (op, pairings) = parse_subcircuit(line);
         assert_eq!(op, "memTraceEntryEncoder");
