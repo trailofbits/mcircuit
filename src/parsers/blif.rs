@@ -88,6 +88,8 @@ pub trait CanConstructVariant<T: WireValue> {
         inputs: &[usize],
         cons: Option<T>,
     ) -> Operation<T>;
+
+    fn constant_from_str(&self, s: &str) -> T;
 }
 
 pub struct BlifParser<T: WireValue> {
@@ -154,6 +156,16 @@ impl CanConstructVariant<bool> for BlifParser<bool> {
                 cons,
             ),
             _ => unimplemented!("Unsupported gate type: {}", op),
+        }
+    }
+
+    fn constant_from_str(&self, s: &str) -> bool {
+        match s {
+            "$false" => false,
+            "$true" => true,
+            _ => s
+                .parse()
+                .unwrap_or_else(|_| panic!("Can't convert {} into a bool", s)),
         }
     }
 }
@@ -224,6 +236,16 @@ impl CanConstructVariant<u64> for BlifParser<u64> {
             _ => unimplemented!("Unsupported gate type: {}", op),
         }
     }
+
+    fn constant_from_str(&self, s: &str) -> u64 {
+        match s {
+            "$false" => 0u64,
+            "$true" => 1u64,
+            _ => s
+                .parse()
+                .unwrap_or_else(|_| panic!("Can't convert {} into a u64", s)),
+        }
+    }
 }
 
 impl<T: WireValue> BlifParser<T>
@@ -237,11 +259,25 @@ where
             let mut reader: Option<BufReader<File>> = None;
             swap(&mut reader, &mut self.reader);
 
-            // reserve the 0 and 1 wires for true and false
+            let mut current: BlifCircuitDesc<T> = Default::default();
+
+            // reserve the 0 and 1 wires for true and false.
             assert_eq!(self.hasher.get_wire_id("$false"), 0);
             assert_eq!(self.hasher.get_wire_id("$true"), 1);
 
-            let mut current: BlifCircuitDesc<T> = Default::default();
+            // Push const gates for true & false
+            current.gates.push(self.construct_variant(
+                "CONST",
+                0,
+                &[],
+                Some(self.constant_from_str("$false")),
+            ));
+            current.gates.push(self.construct_variant(
+                "CONST",
+                1,
+                &[],
+                Some(self.constant_from_str("$true")),
+            ));
 
             for line in reader.unwrap().lines().flatten() {
                 let mut line: VecDeque<&str> = line.trim().split(' ').collect();
@@ -303,6 +339,19 @@ where
                     }
                     ".end" => {
                         self.circuit.push(take(&mut current));
+                        // Push const gates for true & false
+                        current.gates.push(self.construct_variant(
+                            "CONST",
+                            0,
+                            &[],
+                            Some(self.constant_from_str("$false")),
+                        ));
+                        current.gates.push(self.construct_variant(
+                            "CONST",
+                            1,
+                            &[],
+                            Some(self.constant_from_str("$true")),
+                        ));
                     }
                     _ => (),
                 }
