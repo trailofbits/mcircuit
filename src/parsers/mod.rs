@@ -17,10 +17,12 @@ pub trait Parse<T: WireValue> {
     fn next(&mut self) -> Option<Self::Item>;
 }
 
+#[cfg(not(debug_assertions))]
 pub struct WireHasher {
     hashes: HashMap<usize, usize>,
 }
 
+#[cfg(not(debug_assertions))]
 impl WireHasher {
     fn new() -> Self {
         WireHasher {
@@ -34,6 +36,46 @@ impl WireHasher {
         let len = self.hashes.len();
 
         *self.hashes.entry(s.finish() as usize).or_insert(len)
+    }
+
+    pub fn backref(&self, id: usize) -> Option<&String> {
+        None
+    }
+}
+
+#[cfg(debug_assertions)]
+pub struct WireHasher {
+    hashes: HashMap<usize, usize>,
+    reverse: Vec<String>,
+}
+
+#[cfg(debug_assertions)]
+impl WireHasher {
+    fn new() -> Self {
+        WireHasher {
+            hashes: HashMap::new(),
+            reverse: Vec::new(),
+        }
+    }
+
+    pub fn get_wire_id(&mut self, name: &str) -> usize {
+        let mut s = DefaultHasher::new();
+        name.hash(&mut s);
+        let len = self.hashes.len();
+
+        let hash = s.finish() as usize;
+        if self.hashes.contains_key(&hash) {
+            return *self.hashes.get(&hash).unwrap();
+        } else {
+            self.hashes.insert(hash, len);
+            self.reverse.push(name.to_string());
+            assert_eq!(self.reverse.len(), len + 1);
+            len
+        }
+    }
+
+    pub fn backref(&self, id: usize) -> Option<&String> {
+        self.reverse.get(id)
     }
 }
 
