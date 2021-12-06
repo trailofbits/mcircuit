@@ -1,10 +1,16 @@
+// Rustc tried to guide me back to the path of righteousness, but I have been
+// tempted by the forbidden `fn(&self) -> [u8; size_of::<Self>()]`
+#![feature(generic_const_exprs)]
+
 #[macro_use]
 extern crate variant_count;
 
+use std::mem::size_of;
 use num_traits::Zero;
+use uint::construct_uint;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 pub use eval::{evaluate_composite_program, largest_wires, smallest_wires};
 pub use has_const::HasConst;
@@ -24,10 +30,15 @@ pub mod parsers;
 mod tests;
 mod translatable;
 
-pub trait WireValue: Copy + PartialEq + std::fmt::Debug + Serialize {
+// U256 consisting of 4 x 64-bit words
+construct_uint! {
+	pub struct U256(4);
+}
+
+pub trait WireValue: Copy + PartialEq + std::fmt::Debug + Serialize + Sized {
     fn is_zero(&self) -> bool;
 
-    fn to_le_bytes(&self) -> [u8; 8];
+    fn to_le_bytes(&self) -> [u8; size_of::<Self>()];
 }
 
 impl WireValue for bool {
@@ -35,8 +46,8 @@ impl WireValue for bool {
         !*self
     }
 
-    fn to_le_bytes(&self) -> [u8; 8] {
-        [if *self { 1u8 } else { 0u8 }, 0, 0, 0, 0, 0, 0, 0]
+    fn to_le_bytes(&self) -> [u8; 1] {
+        [if *self { 1u8 } else { 0u8 }]
     }
 }
 
@@ -47,6 +58,34 @@ impl WireValue for u64 {
 
     fn to_le_bytes(&self) -> [u8; 8] {
         u64::to_le_bytes(*self)
+    }
+}
+
+impl WireValue for u8 {
+    fn is_zero(&self) -> bool {
+        Zero::is_zero(self)
+    }
+
+    fn to_le_bytes(&self) -> [u8; 1] {
+        u8::to_le_bytes(*self)
+    }
+}
+
+impl Serialize for U256 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        serializer.serialize_bytes(&self.to_le_bytes())
+    }
+}
+
+impl WireValue for U256 {
+    fn is_zero(&self) -> bool {
+        self.0 == [0u64; 4]
+    }
+
+    fn to_le_bytes(&self) -> [u8; 32] {
+        let mut bytes = [0u8; 32];
+        self.to_little_endian(&mut bytes);
+        bytes
     }
 }
 
