@@ -45,8 +45,20 @@ impl AnalysisPass for WireCounter {
                     self.smallest_bool = min(self.smallest_bool, i);
                 }
             }
+            CombineOperation::GF2AsU8(z8_insn) => {
+                for i in z8_insn.inputs().chain(z8_insn.outputs()) {
+                    self.largest_bool = max(self.largest_bool, i);
+                    self.smallest_bool = min(self.smallest_bool, i);
+                }
+            }
             CombineOperation::Z64(z64_insn) => {
                 for i in z64_insn.inputs().chain(z64_insn.outputs()) {
+                    self.largest_arith = max(self.largest_arith, i);
+                    self.smallest_arith = min(self.smallest_arith, i);
+                }
+            }
+            CombineOperation::Z256(z256_insn) => {
+                for i in z256_insn.inputs().chain(z256_insn.outputs()) {
                     self.largest_arith = max(self.largest_arith, i);
                     self.smallest_arith = min(self.smallest_arith, i);
                 }

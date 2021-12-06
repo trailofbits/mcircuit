@@ -8,7 +8,7 @@ extern crate variant_count;
 use num_traits::Zero;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 use uint::construct_uint;
 
@@ -32,6 +32,7 @@ mod translatable;
 
 // U256 consisting of 4 x 64-bit words
 construct_uint! {
+    #[derive(Serialize, Deserialize)]
     pub struct U256(4);
 }
 
@@ -71,18 +72,9 @@ impl WireValue for u8 {
     }
 }
 
-impl Serialize for U256 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_bytes(&self.to_le_bytes())
-    }
-}
-
 impl WireValue for U256 {
     fn is_zero(&self) -> bool {
-        self.0 == [0u64; 4]
+        *self == U256::from(0)
     }
 
     fn to_le_bytes(&self) -> [u8; 32] {
@@ -129,8 +121,13 @@ enum OpType<T: WireValue> {
 pub enum CombineOperation {
     /// Circuit Operation on GF2 Finite Field
     GF2(Operation<bool>),
+    /// Circuit Operation on 8-bit integer ring. Treated as _BOOLEAN_ operations that carry extra
+    /// bits so we can insert new values to indicate error states.
+    GF2AsU8(Operation<u8>),
     /// Circuit Operation on 64-bit integer ring
     Z64(Operation<u64>),
+    /// Circuit operation on 256-bit integer ring
+    Z256(Operation<U256>),
 
     /// Converts a value on GF2 to a value on Z64
     /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice

@@ -128,9 +128,17 @@ impl Translatable for CombineOperation {
                 op.translate(win, wout)
                     .expect("Could not translate underlying GF2 gate"),
             )),
+            CombineOperation::GF2AsU8(op) => Some(CombineOperation::GF2AsU8(
+                op.translate(win, wout)
+                    .expect("Could not translate underlying Z8 gate"),
+            )),
             CombineOperation::Z64(op) => Some(CombineOperation::Z64(
                 op.translate(win, wout)
                     .expect("Could not translate underlying Z64 gate"),
+            )),
+            CombineOperation::Z256(op) => Some(CombineOperation::Z256(
+                op.translate(win, wout)
+                    .expect("Could not translate underlying Z256 gate"),
             )),
             CombineOperation::B2A(_z64, _gf2) => Some(CombineOperation::B2A(
                 wout.next().expect("B2A needs a Z64 output"),

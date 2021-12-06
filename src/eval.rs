@@ -83,6 +83,16 @@ pub fn evaluate_composite_program(
                     arith_wires[dst] = c;
                 }
             },
+            CombineOperation::GF2AsU8(_) => {
+                unimplemented!(
+                    "evaluate_composite_program requires a circuit made of bool and u64 for now"
+                )
+            }
+            CombineOperation::Z256(_) => {
+                unimplemented!(
+                    "evaluate_composite_program requires a circuit made of bool and u64 for now"
+                )
+            }
             CombineOperation::B2A(dst, low) => {
                 let mut running_val: u64 = 0;
                 let mut power: u64 = 1;
