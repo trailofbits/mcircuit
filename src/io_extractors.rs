@@ -174,7 +174,7 @@ impl<'a> Iterator for InputIterator<'a, CombineOperation> {
             CombineOperation::GF2(op) => InputIterator::new(op).nth(self.index),
             CombineOperation::GF2AsU8(op) => InputIterator::new(op).nth(self.index),
             CombineOperation::Z64(op) => InputIterator::new(op).nth(self.index),
-            CombineOperation::Z256(op) => InputIterator::new(op).nth(self.index),
+            CombineOperation::Z256(op) => InputIterator::new(&**op).nth(self.index),
             CombineOperation::B2A(_, base) => {
                 if self.index < 64 {
                     Some(base + self.index)
@@ -197,7 +197,7 @@ impl<'a> Iterator for OutputIterator<'a, CombineOperation> {
             CombineOperation::GF2(op) => OutputIterator::new(op).nth(self.index),
             CombineOperation::GF2AsU8(op) => OutputIterator::new(op).nth(self.index),
             CombineOperation::Z64(op) => OutputIterator::new(op).nth(self.index),
-            CombineOperation::Z256(op) => OutputIterator::new(op).nth(self.index),
+            CombineOperation::Z256(op) => OutputIterator::new(&**op).nth(self.index),
             CombineOperation::B2A(a, _) => {
                 if self.index == 0 {
                     Some(*a)

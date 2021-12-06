@@ -117,7 +117,7 @@ enum OpType<T: WireValue> {
     BinaryConst(fn(usize, usize, T) -> Operation<T>),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum CombineOperation {
     /// Circuit Operation on GF2 Finite Field
     GF2(Operation<bool>),
@@ -126,8 +126,8 @@ pub enum CombineOperation {
     GF2AsU8(Operation<u8>),
     /// Circuit Operation on 64-bit integer ring
     Z64(Operation<u64>),
-    /// Circuit operation on 256-bit integer ring
-    Z256(Operation<U256>),
+    /// Circuit operation on 256-bit integer ring (Boxed to reduce enum size)
+    Z256(Box<Operation<U256>>),
 
     /// Converts a value on GF2 to a value on Z64
     /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice

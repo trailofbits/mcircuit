@@ -130,6 +130,6 @@ impl Identity<U256> for CombineOperation {
     }
 
     fn identity(w_out: usize, w_in: usize) -> Self {
-        Self::Z256(Operation::identity(w_out, w_in))
+        Self::Z256(Box::new(Operation::identity(w_out, w_in)))
     }
 }

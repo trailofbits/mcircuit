@@ -39,7 +39,7 @@ fn parse_io(mut line: VecDeque<&str>) -> Vec<Vec<&str>> {
 
 fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     let name = line.pop_front().unwrap();
-    let io: Vec<(&str, &str)> = line.drain(..).map(|part| parse_split(part)).collect();
+    let io: Vec<(&str, &str)> = line.drain(..).map(parse_split).collect();
 
     (name, io)
 }
