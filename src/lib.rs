@@ -5,12 +5,12 @@
 #[macro_use]
 extern crate variant_count;
 
-use std::mem::size_of;
 use num_traits::Zero;
-use uint::construct_uint;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use serde::{Deserialize, Serialize, Serializer};
+use std::mem::size_of;
+use uint::construct_uint;
 
 pub use eval::{evaluate_composite_program, largest_wires, smallest_wires};
 pub use has_const::HasConst;
@@ -32,7 +32,7 @@ mod translatable;
 
 // U256 consisting of 4 x 64-bit words
 construct_uint! {
-	pub struct U256(4);
+    pub struct U256(4);
 }
 
 pub trait WireValue: Copy + PartialEq + std::fmt::Debug + Serialize + Sized {
@@ -72,7 +72,10 @@ impl WireValue for u8 {
 }
 
 impl Serialize for U256 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         serializer.serialize_bytes(&self.to_le_bytes())
     }
 }
