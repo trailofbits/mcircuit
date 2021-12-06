@@ -27,7 +27,7 @@ impl Parse<bool> for SMTLibParser {
 
 #[cfg(test)]
 mod test {
-    use lexpr::{Cons, Value};
+    use lexpr::Value;
 
     #[test]
     fn test_sample2() {
@@ -72,7 +72,7 @@ mod test {
         }
     }
 
-    fn sample() -> String {
+    fn _sample() -> String {
         "(declare-fun k!1200 () Bool)
 (declare-fun k!1190 () Bool)
 (declare-fun k!1180 () Bool)

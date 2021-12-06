@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use std::array::IntoIter;
     use std::collections::HashMap;
     use std::iter::FromIterator;
 
@@ -181,11 +180,11 @@ mod tests {
 
             // Test hashmap translation
             let translated_via_hashmap = gate
-                .translate_from_hashmap(HashMap::<usize, usize>::from_iter(IntoIter::new([
+                .translate_from_hashmap(HashMap::<usize, usize>::from_iter([
                     (original_out, translated_out),
                     (original_in1, translated_in1),
                     (original_in2, translated_in2),
-                ])))
+                ]))
                 .expect("Hashmap Translation Failed");
 
             assert_eq!(translation_target, translated_via_hashmap);
