@@ -1,12 +1,12 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::mem::swap;
 use std::mem::take;
+use std::mem::{replace, swap};
 
 use crate::parsers::{Parse, WireHasher};
-use crate::WireValue;
+use crate::{HasIO, WireValue};
 use crate::{OpType, Operation};
 use num_traits::Zero;
 
@@ -39,7 +39,7 @@ fn parse_io(mut line: VecDeque<&str>) -> Vec<Vec<&str>> {
 
 fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     let name = line.pop_front().unwrap();
-    let io: Vec<(&str, &str)> = line.drain(..).map(|part| parse_split(part)).collect();
+    let io: Vec<(&str, &str)> = line.drain(..).map(parse_split).collect();
 
     (name, io)
 }
@@ -53,10 +53,104 @@ pub struct BlifCircuitDesc<T: WireValue> {
     pub subcircuits: Vec<BlifSubcircuitDesc>,
 }
 
+impl<T: WireValue> BlifCircuitDesc<T> {
+    fn add_subcircuit(&mut self, mut packed_sub: PackedSubcircuitDesc, hasher: &mut WireHasher) {
+        let mut unpacked = BlifSubcircuitDesc {
+            name: packed_sub.name.clone(),
+            ..Default::default()
+        };
+
+        for (parent, sub) in packed_sub.connections.drain(..) {
+            // Get the name of this wire without any indices
+            let base_name = sub.split('[').next().unwrap();
+            // Figure out if this wire is packed
+            if let Some(width) = packed_sub.packed_wires.get(base_name) {
+                // Split wire into sub-wires
+                for i in 0..*width {
+                    unpacked.connections.push((
+                        hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()),
+                        hasher.get_wire_id(format!("{}[{}]", sub, i).as_str()),
+                    ));
+                }
+
+                // Check if any of the I/O wires are also packed
+                let parent_id = hasher.get_wire_id(&parent);
+
+                let mut new_inputs = Vec::with_capacity(self.inputs.len() + width);
+                for input in self.inputs.drain(..) {
+                    if input == parent_id {
+                        for i in 0..*width {
+                            new_inputs
+                                .push(hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()))
+                        }
+                    } else {
+                        new_inputs.push(input)
+                    }
+                }
+                self.inputs = new_inputs;
+
+                let mut new_outputs = Vec::with_capacity(self.outputs.len() + width);
+                for output in self.outputs.drain(..) {
+                    if output == parent_id {
+                        for i in 0..*width {
+                            new_outputs
+                                .push(hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()))
+                        }
+                    } else {
+                        new_outputs.push(output)
+                    }
+                }
+                self.outputs = new_outputs;
+
+                // Make sure we only connect to other subcircuits or I/O (not gates)
+                for gate in self.gates.iter() {
+                    if gate.outputs().any(|w| w == parent_id) {
+                        panic!(
+                            "Tried to drive the packed wire {}.{} via an unpacked gate",
+                            packed_sub.name, sub
+                        );
+                    }
+                    if gate.inputs().any(|w| w == parent_id) {
+                        panic!(
+                            "Tried to drive an unpacked gate via packed wire {}.{}",
+                            packed_sub.name, sub
+                        );
+                    }
+                }
+            }
+            // Otherwise this wire is fine, so just push it to the subcircuit
+            else {
+                unpacked
+                    .connections
+                    .push((hasher.get_wire_id(&parent), hasher.get_wire_id(&sub)));
+            }
+        }
+
+        self.subcircuits.push(unpacked);
+    }
+}
+
 #[derive(Clone)]
 pub struct BlifSubcircuitDesc {
     pub name: String,
     pub connections: Vec<(usize, usize)>,
+}
+
+#[derive(Clone)]
+pub struct PackedSubcircuitDesc {
+    pub name: String,
+    pub connections: Vec<(String, String)>,
+    pub packed_wires: HashMap<String, usize>,
+}
+
+impl Default for PackedSubcircuitDesc {
+    fn default() -> Self {
+        PackedSubcircuitDesc {
+            name: "".to_string(),
+            connections: vec![],
+            packed_wires: HashMap::new(),
+        }
+    }
 }
 
 impl Default for BlifSubcircuitDesc {
@@ -260,6 +354,7 @@ where
             swap(&mut reader, &mut self.reader);
 
             let mut current: BlifCircuitDesc<T> = Default::default();
+            let mut current_subcircuit: Option<PackedSubcircuitDesc> = None;
 
             // reserve the 0 and 1 wires for true and false.
             assert_eq!(self.hasher.get_wire_id("$false"), 0);
@@ -314,21 +409,45 @@ where
                             .push(self.construct_variant(op, out_id, &input_ids, None));
                     }
                     ".subckt" => {
-                        let (name, mut io_pairings) = parse_subcircuit(line);
-                        let connections = io_pairings
-                            .drain(..)
-                            .map(|(child_name, parent_name)| {
-                                (
-                                    self.hasher.get_wire_id(parent_name),
-                                    self.hasher.get_wire_id(child_name),
-                                )
-                            })
-                            .collect();
+                        if let Some(subc) =
+                            replace(&mut current_subcircuit, Some(Default::default()))
+                        {
+                            // Push the previous subcircuit (if any)
+                            current.add_subcircuit(subc, &mut self.hasher);
+                        }
 
-                        current.subcircuits.push(BlifSubcircuitDesc {
-                            name: name.into(),
-                            connections,
-                        })
+                        let (name, mut io_pairings) = parse_subcircuit(line);
+                        let connections = io_pairings.drain(..).map(|(child_name, parent_name)| {
+                            (parent_name.into(), child_name.into())
+                        });
+
+                        // Should _always_ be Some thanks to the earlier `replace`
+                        if let Some(subc) = &mut current_subcircuit {
+                            subc.name = name.into();
+                            subc.connections.extend(connections);
+                        }
+                    }
+                    ".attr" => {
+                        let name = line.pop_front().unwrap();
+                        let value = line.pop_front().unwrap();
+
+                        match name {
+                            "module_not_derived" => (),
+                            "src" => (),
+                            "_packing" => match value {
+                                "\"gf2\"" => println!("packed circuit encountered"),
+                                _ => {
+                                    unimplemented!("Unknown field: {}", value);
+                                }
+                            },
+                            wire => {
+                                let width = usize::from_str_radix(value, 2).unwrap();
+                                println!("{} is {} bits wide", wire, width);
+                                if let Some(subc) = &mut current_subcircuit {
+                                    subc.packed_wires.insert(wire.into(), width);
+                                }
+                            }
+                        }
                     }
                     ".names" | ".conn" => {
                         let from = self.hasher.get_wire_id(line.pop_front().unwrap());
@@ -338,6 +457,11 @@ where
                             .push(self.construct_variant("BUF", to, &[from], None))
                     }
                     ".end" => {
+                        // Finish off any subcircuits that haven't been pushed
+                        if let Some(subc) = take(&mut current_subcircuit) {
+                            current.add_subcircuit(subc, &mut self.hasher);
+                        }
+
                         self.circuit.push(take(&mut current));
                         // Push const gates for true & false
                         current.gates.push(self.construct_variant(
