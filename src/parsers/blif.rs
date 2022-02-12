@@ -44,6 +44,18 @@ fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     (name, io)
 }
 
+fn get_base_name_and_width(unparsed: String) -> (String, usize) {
+    let (base_name, after) = match unparsed.split_once('[') {
+        None => {(unparsed, None)}
+        Some((before, after)) => {(before.to_string(), Some(after))}
+    };
+    let idx = match after {
+        None => {0}
+        Some(after) => { usize::from_str_radix(after.split_once(']').unwrap().0, 10).unwrap() }
+    };
+    (base_name, idx)
+}
+
 #[derive(Clone)]
 pub struct BlifCircuitDesc<T: WireValue> {
     pub name: String,
@@ -61,68 +73,73 @@ impl<T: WireValue> BlifCircuitDesc<T> {
         };
 
         for (parent, sub) in packed_sub.connections.drain(..) {
-            // Get the name of this wire without any indices
-            let base_name = sub.split('[').next().unwrap();
+
+            let (base_name_sub, packed_idx_sub) = get_base_name_and_width(sub.clone());
+            let (base_name_parent, packed_idx_parent) = get_base_name_and_width(parent.clone());
+
             // Figure out if this wire is packed
-            if let Some(width) = packed_sub.packed_wires.get(base_name) {
-                // Split wire into sub-wires
-                for i in 0..*width {
-                    unpacked.connections.push((
-                        hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()),
-                        hasher.get_wire_id(format!("{}[{}]", sub, i).as_str()),
-                    ));
-                }
+            match packed_sub.packed_wires.get(base_name_sub.as_str()) {
+                Some(width) => {
 
-                // Check if any of the I/O wires are also packed
-                let parent_id = hasher.get_wire_id(&parent);
+                    // Split wire into sub-wires
+                    for i in 0..*width {
+                        unpacked.connections.push((
+                            hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()),
+                            hasher.get_wire_id(format!("{}[{}]", base_name_sub, (packed_idx_sub * width) + i).as_str()),
+                        ));
+                    }
 
-                let mut new_inputs = Vec::with_capacity(self.inputs.len() + width);
-                for input in self.inputs.drain(..) {
-                    if input == parent_id {
-                        for i in 0..*width {
-                            new_inputs
-                                .push(hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()))
+                    // Check if any of the I/O wires are also packed
+                    let parent_id = hasher.get_wire_id(&parent);
+
+                    let mut new_inputs = Vec::with_capacity(self.inputs.len() + width);
+                    for input in self.inputs.drain(..) {
+                        if input == parent_id {
+                            for i in 0..*width {
+                                new_inputs
+                                    .push(hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()))
+                            }
+                        } else {
+                            new_inputs.push(input)
                         }
-                    } else {
-                        new_inputs.push(input)
                     }
-                }
-                self.inputs = new_inputs;
+                    self.inputs = new_inputs;
 
-                let mut new_outputs = Vec::with_capacity(self.outputs.len() + width);
-                for output in self.outputs.drain(..) {
-                    if output == parent_id {
-                        for i in 0..*width {
-                            new_outputs
-                                .push(hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()))
+                    let mut new_outputs = Vec::with_capacity(self.outputs.len() + width);
+                    for output in self.outputs.drain(..) {
+                        if output == parent_id {
+                            for i in 0..*width {
+                                new_outputs
+                                    .push(hasher.get_wire_id(format!("{}[{}]", parent, i).as_str()))
+                            }
+                        } else {
+                            new_outputs.push(output)
                         }
-                    } else {
-                        new_outputs.push(output)
                     }
-                }
-                self.outputs = new_outputs;
+                    self.outputs = new_outputs;
 
-                // Make sure we only connect to other subcircuits or I/O (not gates)
-                for gate in self.gates.iter() {
-                    if gate.outputs().any(|w| w == parent_id) {
-                        panic!(
-                            "Tried to drive the packed wire {}.{} via an unpacked gate",
-                            packed_sub.name, sub
-                        );
-                    }
-                    if gate.inputs().any(|w| w == parent_id) {
-                        panic!(
-                            "Tried to drive an unpacked gate via packed wire {}.{}",
-                            packed_sub.name, sub
-                        );
+                    // Make sure we only connect to other subcircuits or I/O (not gates)
+                    for gate in self.gates.iter() {
+                        if gate.outputs().any(|w| w == parent_id) {
+                            panic!(
+                                "Tried to drive the packed wire {}.{} via an unpacked gate",
+                                packed_sub.name, sub
+                            );
+                        }
+                        if gate.inputs().any(|w| w == parent_id) {
+                            panic!(
+                                "Tried to drive an unpacked gate via packed wire {}.{}",
+                                packed_sub.name, sub
+                            );
+                        }
                     }
                 }
-            }
-            // Otherwise this wire is fine, so just push it to the subcircuit
-            else {
-                unpacked
-                    .connections
-                    .push((hasher.get_wire_id(&parent), hasher.get_wire_id(&sub)));
+                // Otherwise this wire is fine, so just push it to the subcircuit
+                None => {
+                    unpacked
+                        .connections
+                        .push((hasher.get_wire_id(&parent), hasher.get_wire_id(&sub)));
+                }
             }
         }
 
@@ -435,14 +452,13 @@ where
                             "module_not_derived" => (),
                             "src" => (),
                             "_packing" => match value {
-                                "\"gf2\"" => println!("packed circuit encountered"),
+                                "\"gf2\"" => (),
                                 _ => {
                                     unimplemented!("Unknown field: {}", value);
                                 }
                             },
                             wire => {
                                 let width = usize::from_str_radix(value, 2).unwrap();
-                                println!("{} is {} bits wide", wire, width);
                                 if let Some(subc) = &mut current_subcircuit {
                                     subc.packed_wires.insert(wire.into(), width);
                                 }
@@ -462,26 +478,56 @@ where
                             current.add_subcircuit(subc, &mut self.hasher);
                         }
 
-                        self.circuit.push(take(&mut current));
-                        // Push const gates for true & false
-                        current.gates.push(self.construct_variant(
-                            "CONST",
-                            0,
-                            &[],
-                            Some(self.constant_from_str("$false")),
-                        ));
-                        current.gates.push(self.construct_variant(
-                            "CONST",
-                            1,
-                            &[],
-                            Some(self.constant_from_str("$true")),
-                        ));
+                        if current.gates.len() == 0 {
+                            println!("Warning: Dropping empty module {}", current.name);
+
+                            current = Default::default();
+
+                            current.gates.push(self.construct_variant(
+                                "CONST",
+                                0,
+                                &[],
+                                Some(self.constant_from_str("$false")),
+                            ));
+                            current.gates.push(self.construct_variant(
+                                "CONST",
+                                1,
+                                &[],
+                                Some(self.constant_from_str("$true")),
+                            ));
+
+                            continue;
+                        }
+                        else {
+                            self.circuit.push(take(&mut current));
+                            // Push const gates for true & false
+                            current.gates.push(self.construct_variant(
+                                "CONST",
+                                0,
+                                &[],
+                                Some(self.constant_from_str("$false")),
+                            ));
+                            current.gates.push(self.construct_variant(
+                                "CONST",
+                                1,
+                                &[],
+                                Some(self.constant_from_str("$true")),
+                            ));
+                        }
                     }
                     _ => (),
                 }
             }
-            self.circuit.reverse();
         }
+    }
+
+    pub fn add_file(&mut self, new_reader: BufReader<File>) {
+        if !self.parsed {
+            self.clean_parse();
+        }
+
+        self.reader = Some(new_reader);
+        self.parsed = false;
     }
 }
 
@@ -502,7 +548,13 @@ where
         if !self.parsed {
             self.clean_parse();
         }
-        self.circuit.pop()
+        if !self.circuit.is_empty(){
+            Some(self.circuit.remove(0))
+        }
+        else {
+            None
+        }
+
     }
 }
 
@@ -510,7 +562,7 @@ where
 mod tests {
     use std::collections::VecDeque;
 
-    use crate::parsers::blif::{parse_gate, parse_io, parse_subcircuit};
+    use crate::parsers::blif::{get_base_name_and_width, parse_gate, parse_io, parse_subcircuit};
 
     #[test]
     fn test_gate_parsing() {
@@ -557,5 +609,14 @@ mod tests {
                 ("address[2]", "src_read_address[2]"),
             ]
         );
+    }
+
+    #[test]
+    fn test_base_name_parsing() {
+        assert_eq!(("random".to_string(), 0), get_base_name_and_width("random[0]".to_string()));
+        assert_eq!(("random".to_string(), 0), get_base_name_and_width("random".to_string()));
+        assert_eq!(("random".to_string(), 7), get_base_name_and_width("random[7]".to_string()));
+        assert_eq!(("foo_".to_string(), 17), get_base_name_and_width("foo_[17]".to_string()));
+
     }
 }
