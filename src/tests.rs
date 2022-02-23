@@ -1,6 +1,5 @@
 #[cfg(test)]
-mod tests {
-    use std::array::IntoIter;
+mod test {
     use std::collections::HashMap;
     use std::iter::FromIterator;
 
@@ -120,10 +119,8 @@ mod tests {
 
             // Test SizeHint
             let gate = CombineOperation::SizeHint(out, low);
-            let collected_inputs: Vec<usize> = gate.inputs().collect();
-            let collected_outputs: Vec<usize> = gate.outputs().collect();
-            assert!(collected_inputs.is_empty());
-            assert!(collected_outputs.is_empty());
+            assert!(gate.inputs().next().is_none());
+            assert!(gate.outputs().next().is_none());
         }
     }
 
@@ -181,11 +178,13 @@ mod tests {
 
             // Test hashmap translation
             let translated_via_hashmap = gate
-                .translate_from_hashmap(HashMap::<usize, usize>::from_iter(IntoIter::new([
-                    (original_out, translated_out),
-                    (original_in1, translated_in1),
-                    (original_in2, translated_in2),
-                ])))
+                .translate_from_hashmap(HashMap::<usize, usize>::from_iter(
+                    IntoIterator::into_iter([
+                        (original_out, translated_out),
+                        (original_in1, translated_in1),
+                        (original_in2, translated_in2),
+                    ]),
+                ))
                 .expect("Hashmap Translation Failed");
 
             assert_eq!(translation_target, translated_via_hashmap);
