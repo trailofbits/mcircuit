@@ -1,13 +1,13 @@
+use num_traits::Zero;
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::mem::swap;
 use std::mem::take;
-use std::mem::{swap};
-use num_traits::Zero;
 
 use crate::parsers::{Parse, WireHasher};
-use crate::{WireValue};
+use crate::WireValue;
 use crate::{OpType, Operation};
 
 pub fn parse_split(pair: &str) -> (&str, &str) {
@@ -44,7 +44,7 @@ fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     (name, io)
 }
 
-fn get_base_name_and_width(unparsed: &str) -> (String, usize) {
+pub fn get_base_name_and_width(unparsed: &str) -> (String, usize) {
     let (base_name, after): (String, Option<&str>) = match unparsed.split_once('[') {
         None => (unparsed.into(), None),
         Some((before, after)) => (before.to_string(), Some(after)),
@@ -64,6 +64,8 @@ fn get_base_name_and_width(unparsed: &str) -> (String, usize) {
 pub fn format_wire_id(context: &str, id: &str) -> String {
     if (id == "$true") || (id == "$false") {
         id.to_string()
+    } else if id == "$undef" {
+        panic!("{} contains an $undef wire", context);
     } else {
         format!("{}::{}", context, id)
     }
@@ -369,7 +371,7 @@ impl CanConstructVariant<u64> for BlifParser<u64> {
     }
 }
 
-fn split_wire_id(id: &str) -> Vec<String> {
+pub fn split_wire_id(id: &str) -> Vec<String> {
     if id.contains("_PACKED_") {
         let (base, idx) = get_base_name_and_width(id);
         match base.split_once("_PACKED_") {
@@ -470,6 +472,14 @@ where
                         for (child_name, parent_name) in io_pairings.drain(..) {
                             let child_unpacked = split_wire_id(child_name);
                             let parent_unpacked = split_wire_id(parent_name);
+
+                            assert_eq!(
+                                child_unpacked.len(),
+                                parent_unpacked.len(),
+                                "{} didn't expand to the same size as {}",
+                                child_name,
+                                parent_name
+                            );
 
                             for (cname, pname) in child_unpacked.iter().zip(parent_unpacked.iter())
                             {
