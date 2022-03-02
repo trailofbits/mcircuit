@@ -3,12 +3,12 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::mem::take;
-use std::mem::{replace, swap};
+use std::mem::{swap};
+use num_traits::Zero;
 
 use crate::parsers::{Parse, WireHasher};
-use crate::{HasIO, WireValue};
+use crate::{WireValue};
 use crate::{OpType, Operation};
-use num_traits::Zero;
 
 pub fn parse_split(pair: &str) -> (&str, &str) {
     let mut split = pair.split('=');
@@ -44,9 +44,9 @@ fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     (name, io)
 }
 
-fn get_base_name_and_width(unparsed: String) -> (String, usize) {
-    let (base_name, after) = match unparsed.split_once('[') {
-        None => (unparsed, None),
+fn get_base_name_and_width(unparsed: &str) -> (String, usize) {
+    let (base_name, after): (String, Option<&str>) = match unparsed.split_once('[') {
+        None => (unparsed.into(), None),
         Some((before, after)) => (before.to_string(), Some(after)),
     };
     let idx = match after {
@@ -86,83 +86,6 @@ pub struct PackedBlifCircuitDesc<T: WireValue> {
     pub gates: Vec<Operation<T>>,
     pub subcircuits: Vec<BlifSubcircuitDesc>,
     pub packed_wires: HashMap<String, usize>,
-}
-
-impl<T: WireValue> PackedBlifCircuitDesc<T> {
-    fn add_subcircuit(&mut self, mut packed_sub: PackedSubcircuitDesc, hasher: &mut WireHasher) {
-        let mut unpacked = BlifSubcircuitDesc {
-            name: packed_sub.name.clone(),
-            ..Default::default()
-        };
-
-        for (parent, sub) in packed_sub.connections.drain(..) {
-            let (base_name_parent, packed_idx_parent) = get_base_name_and_width(parent.clone());
-            let (base_name_sub, packed_idx_sub) = get_base_name_and_width(sub.clone());
-
-            // Figure out if this wire is packed
-            match packed_sub.packed_wires.get(base_name_sub.as_str()) {
-                Some(width) => {
-                    // Split wire into sub-wires
-                    for i in (0..*width) {
-                        unpacked.connections.push((
-                            hasher.get_wire_id(
-                                format!(
-                                    "{}[{}]",
-                                    base_name_parent,
-                                    (packed_idx_parent * width) + i
-                                )
-                                .as_str(),
-                            ),
-                            hasher.get_wire_id(
-                                format!("{}[{}]", base_name_sub, (packed_idx_sub * width) + i)
-                                    .as_str(),
-                            ),
-                        ));
-                    }
-
-                    // Save that this wire is packed so we can expand any I/O wires it connects to
-                    match self.packed_wires.get(&base_name_parent) {
-                        None => {
-                            self.packed_wires.insert(base_name_parent, *width);
-                        }
-                        Some(ew) => {
-                            if *ew != *width {
-                                panic!(
-                                    "{} was supposed to be {} bits wide, got {}",
-                                    parent, ew, width
-                                );
-                            }
-                        }
-                    }
-
-                    let parent_id = hasher.get_wire_id(&parent);
-                    // Make sure we only connect to other subcircuits or I/O (not gates)
-                    for gate in self.gates.iter() {
-                        if gate.outputs().any(|w| w == parent_id) {
-                            panic!(
-                                "Tried to drive the packed wire {}.{} via an unpacked gate",
-                                packed_sub.name, sub
-                            );
-                        }
-                        if gate.inputs().any(|w| w == parent_id) {
-                            panic!(
-                                "Tried to drive an unpacked gate via packed wire {}.{}",
-                                packed_sub.name, sub
-                            );
-                        }
-                    }
-                }
-                // Otherwise this wire is fine, so just push it to the subcircuit
-                None => {
-                    unpacked
-                        .connections
-                        .push((hasher.get_wire_id(&parent), hasher.get_wire_id(&sub)));
-                }
-            }
-        }
-
-        self.subcircuits.push(unpacked);
-    }
 }
 
 #[derive(Clone)]
@@ -222,6 +145,12 @@ impl<T: WireValue> Default for PackedBlifCircuitDesc<T> {
     }
 }
 
+impl<T: WireValue> BlifCircuitDesc<T> {
+    fn add_subcircuit(&mut self, sub: BlifSubcircuitDesc) {
+        self.subcircuits.push(sub)
+    }
+}
+
 pub trait CanConstructVariant<T: WireValue> {
     fn construct_variant(
         &mut self,
@@ -257,7 +186,7 @@ impl<T: WireValue> From<(PackedBlifCircuitDesc<T>, &mut WireHasher)> for BlifCir
         // Unpack the IO wires based on connected subcircuits
         let mut new_inputs = Vec::with_capacity(other.inputs.len());
         for input in other.inputs.drain(..) {
-            let (base_name, packed_idx) = get_base_name_and_width(input.clone());
+            let (base_name, packed_idx) = get_base_name_and_width(&input);
             // If this input is packed, expand it to the full width. Otherwise, add it as-is.
             match other.packed_wires.get(&base_name) {
                 None => {
@@ -275,7 +204,7 @@ impl<T: WireValue> From<(PackedBlifCircuitDesc<T>, &mut WireHasher)> for BlifCir
 
         let mut new_outputs = Vec::with_capacity(other.inputs.len());
         for output in other.outputs.drain(..) {
-            let (base_name, packed_idx) = get_base_name_and_width(output.clone());
+            let (base_name, packed_idx) = get_base_name_and_width(&output);
             // If this outputs is packed, expand it to the full width. Otherwise, add as-is.
             match other.packed_wires.get(&base_name) {
                 None => {
@@ -440,6 +369,27 @@ impl CanConstructVariant<u64> for BlifParser<u64> {
     }
 }
 
+fn split_wire_id(id: &str) -> Vec<String> {
+    if id.contains("_PACKED_") {
+        let (base, idx) = get_base_name_and_width(id);
+        match base.split_once("_PACKED_") {
+            None => {
+                unreachable!("Already did .contains!")
+            }
+            Some((name, width_dec)) => {
+                let width: usize = width_dec
+                    .parse()
+                    .unwrap_or_else(|_| panic!("Can't parse {} as an integer", width_dec));
+                (0..width)
+                    .map(|i| format!("{}[{}]", name, (width * idx) + i))
+                    .collect()
+            }
+        }
+    } else {
+        vec![id.to_string()]
+    }
+}
+
 impl<T: WireValue> BlifParser<T>
 where
     BlifParser<T>: CanConstructVariant<T>,
@@ -451,8 +401,7 @@ where
             let mut reader: Option<BufReader<File>> = None;
             swap(&mut reader, &mut self.reader);
 
-            let mut current: PackedBlifCircuitDesc<T> = Default::default();
-            let mut current_subcircuit: Option<PackedSubcircuitDesc> = None;
+            let mut current: BlifCircuitDesc<T> = Default::default();
 
             // reserve the 0 and 1 wires for true and false.
             assert_eq!(self.hasher.get_wire_id("$false"), 0);
@@ -481,19 +430,23 @@ where
                     }
                     ".inputs" => {
                         for chunk in parse_io(line) {
-                            for name in chunk.iter().rev() {
-                                let formatted = format_wire_id(&current.name, name);
-                                // Save the name for later unpacking, not the ID
-                                current.inputs.push(formatted);
+                            for name_maybe_packed in chunk.iter().rev() {
+                                for name in split_wire_id(name_maybe_packed) {
+                                    let formatted = format_wire_id(&current.name, &name);
+                                    // Save the name for later unpacking, not the ID
+                                    current.inputs.push(self.hasher.get_wire_id(&formatted));
+                                }
                             }
                         }
                     }
                     ".outputs" => {
                         for chunk in parse_io(line) {
-                            for name in chunk.iter().rev() {
-                                let formatted = format_wire_id(&current.name, name);
-                                // Save the name for later unpacking, not the ID
-                                current.outputs.push(formatted);
+                            for name_maybe_packed in chunk.iter().rev() {
+                                for name in split_wire_id(name_maybe_packed) {
+                                    let formatted = format_wire_id(&current.name, &name);
+                                    // Save the name for later unpacking, not the ID
+                                    current.outputs.push(self.hasher.get_wire_id(&formatted));
+                                }
                             }
                         }
                     }
@@ -512,48 +465,28 @@ where
                             .push(self.construct_variant(op, out_id, &input_ids, None));
                     }
                     ".subckt" => {
-                        if let Some(subc) =
-                            replace(&mut current_subcircuit, Some(Default::default()))
-                        {
-                            // Push the previous subcircuit (if any)
-                            current.add_subcircuit(subc, &mut self.hasher);
-                        }
-
                         let (name, mut io_pairings) = parse_subcircuit(line);
-                        let connections = io_pairings.drain(..).map(|(child_name, parent_name)| {
-                            (
-                                format_wire_id(&current.name, parent_name),
-                                format_wire_id(name, child_name),
-                            )
-                        });
+                        let mut connections: Vec<(usize, usize)> = Vec::new();
+                        for (child_name, parent_name) in io_pairings.drain(..) {
+                            let child_unpacked = split_wire_id(child_name);
+                            let parent_unpacked = split_wire_id(parent_name);
 
-                        // Should _always_ be Some thanks to the earlier `replace`
-                        if let Some(subc) = &mut current_subcircuit {
-                            subc.name = name.into();
-                            subc.connections.extend(connections);
-                        }
-                    }
-                    ".attr" => {
-                        let name = line.pop_front().unwrap();
-                        let value = line.pop_front().unwrap();
-
-                        match name {
-                            "module_not_derived" => (),
-                            "src" => (),
-                            "_packing" => match value {
-                                "\"gf2\"" => (),
-                                _ => {
-                                    unimplemented!("Unknown field: {}", value);
-                                }
-                            },
-                            wire => {
-                                let width = usize::from_str_radix(value, 2).unwrap();
-                                if let Some(subc) = &mut current_subcircuit {
-                                    subc.packed_wires
-                                        .insert(format_wire_id(&subc.name, wire), width);
-                                }
+                            for (cname, pname) in child_unpacked.iter().zip(parent_unpacked.iter())
+                            {
+                                connections.push((
+                                    self.hasher
+                                        .get_wire_id(&format_wire_id(&current.name, pname)),
+                                    self.hasher.get_wire_id(&format_wire_id(name, cname)),
+                                ));
                             }
                         }
+
+                        let subc = BlifSubcircuitDesc {
+                            name: name.into(),
+                            connections,
+                        };
+
+                        current.add_subcircuit(subc);
                     }
                     ".names" | ".conn" => {
                         let from = self
@@ -567,11 +500,6 @@ where
                             .push(self.construct_variant("BUF", to, &[from], None))
                     }
                     ".end" => {
-                        // Finish off any subcircuits that haven't been pushed
-                        if let Some(subc) = take(&mut current_subcircuit) {
-                            current.add_subcircuit(subc, &mut self.hasher);
-                        }
-
                         if current.gates.is_empty() && current.subcircuits.is_empty() {
                             println!("Warning: Dropping empty module {}", current.name);
 
@@ -592,8 +520,7 @@ where
 
                             continue;
                         } else {
-                            self.circuit
-                                .push((take(&mut current), &mut self.hasher).into());
+                            self.circuit.push(take(&mut current));
                             // Push const gates for true & false
                             current.gates.push(self.construct_variant(
                                 "CONST",
@@ -656,8 +583,8 @@ mod tests {
     use std::iter::FromIterator;
 
     use crate::parsers::blif::{
-        get_base_name_and_width, parse_gate, parse_io, parse_subcircuit, BlifCircuitDesc,
-        PackedBlifCircuitDesc,
+        get_base_name_and_width, parse_gate, parse_io, parse_subcircuit, split_wire_id,
+        BlifCircuitDesc, PackedBlifCircuitDesc,
     };
     use crate::parsers::WireHasher;
 
@@ -712,23 +639,20 @@ mod tests {
     fn test_base_name_parsing() {
         assert_eq!(
             ("random".to_string(), 0),
-            get_base_name_and_width("random[0]".to_string())
+            get_base_name_and_width("random[0]")
         );
-        assert_eq!(
-            ("random".to_string(), 0),
-            get_base_name_and_width("random".to_string())
-        );
+        assert_eq!(("random".to_string(), 0), get_base_name_and_width("random"));
         assert_eq!(
             ("random".to_string(), 7),
-            get_base_name_and_width("random[7]".to_string())
+            get_base_name_and_width("random[7]")
         );
         assert_eq!(
             ("foo_".to_string(), 17),
-            get_base_name_and_width("foo_[17]".to_string())
+            get_base_name_and_width("foo_[17]")
         );
         assert_eq!(
             ("std::fake::test".to_string(), 0),
-            get_base_name_and_width("std::fake::test[0]".to_string())
+            get_base_name_and_width("std::fake::test[0]")
         );
     }
 
@@ -772,5 +696,35 @@ mod tests {
                 hasher.get_wire_id("out[0]"),
             ]
         );
+    }
+
+    #[test]
+    fn test_packed_wire_split() {
+        assert_eq!(
+            split_wire_id("foobar_PACKED_2[0]"),
+            vec!["foobar[0]".to_string(), "foobar[1]".to_string(),]
+        );
+
+        assert_eq!(
+            split_wire_id("foobar_PACKED_4[3]"),
+            vec![
+                "foobar[12]".to_string(),
+                "foobar[13]".to_string(),
+                "foobar[14]".to_string(),
+                "foobar[15]".to_string(),
+            ]
+        );
+        assert_eq!(
+            split_wire_id("foobar_PACKED_3"),
+            vec![
+                "foobar[0]".to_string(),
+                "foobar[1]".to_string(),
+                "foobar[2]".to_string(),
+            ]
+        );
+
+        assert_eq!(split_wire_id("foobar_[3]"), vec!["foobar_[3]"]);
+
+        assert_eq!(split_wire_id("foobar_PA"), vec!["foobar_PA"]);
     }
 }
