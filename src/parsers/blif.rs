@@ -151,6 +151,26 @@ impl<T: WireValue> BlifCircuitDesc<T> {
     fn add_subcircuit(&mut self, sub: BlifSubcircuitDesc) {
         self.subcircuits.push(sub)
     }
+
+    pub fn validate_io(&self) {
+
+        if let Some(max_input) = self.inputs.iter().max() {
+            let min_input = self.inputs.iter().min().unwrap();
+
+            if (max_input - min_input) != (self.inputs.len() - 1) {
+                panic!("{}'s inputs are not contiguous!\n{:?}", self.name, self.inputs)
+            }
+        }
+
+        if let Some(max_output) = self.outputs.iter().max() {
+            let min_output = self.outputs.iter().min().unwrap();
+
+            if (max_output - min_output) != (self.outputs.len() - 1) {
+                panic!("{}'s outputs are not contiguous!\n{:?}", self.name, self.outputs)
+            }
+        }
+
+    }
 }
 
 pub trait CanConstructVariant<T: WireValue> {
@@ -179,56 +199,6 @@ impl<T: WireValue> Default for BlifParser<T> {
             hasher: Default::default(),
             parsed: false,
             circuit: vec![],
-        }
-    }
-}
-
-impl<T: WireValue> From<(PackedBlifCircuitDesc<T>, &mut WireHasher)> for BlifCircuitDesc<T> {
-    fn from((mut other, hasher): (PackedBlifCircuitDesc<T>, &mut WireHasher)) -> Self {
-        // Unpack the IO wires based on connected subcircuits
-        let mut new_inputs = Vec::with_capacity(other.inputs.len());
-        for input in other.inputs.drain(..) {
-            let (base_name, packed_idx) = get_base_name_and_width(&input);
-            // If this input is packed, expand it to the full width. Otherwise, add it as-is.
-            match other.packed_wires.get(&base_name) {
-                None => {
-                    new_inputs.push(hasher.get_wire_id(&input));
-                }
-                Some(width) => {
-                    for i in (0..*width).rev() {
-                        new_inputs.push(hasher.get_wire_id(
-                            format!("{}[{}]", base_name, (packed_idx * width) + i).as_str(),
-                        ))
-                    }
-                }
-            }
-        }
-
-        let mut new_outputs = Vec::with_capacity(other.inputs.len());
-        for output in other.outputs.drain(..) {
-            let (base_name, packed_idx) = get_base_name_and_width(&output);
-            // If this outputs is packed, expand it to the full width. Otherwise, add as-is.
-            match other.packed_wires.get(&base_name) {
-                None => {
-                    new_outputs.push(hasher.get_wire_id(&output));
-                }
-                Some(width) => {
-                    for i in (0..*width).rev() {
-                        new_outputs.push(hasher.get_wire_id(
-                            format!("{}[{}]", base_name, (packed_idx * width) + i).as_str(),
-                        ))
-                    }
-                }
-            }
-        }
-
-        // New version can take ownership of all our data, but with the updated I/O wires
-        BlifCircuitDesc {
-            name: other.name,
-            inputs: new_inputs,
-            outputs: new_outputs,
-            gates: other.gates,
-            subcircuits: other.subcircuits,
         }
     }
 }
@@ -663,48 +633,6 @@ mod tests {
         assert_eq!(
             ("std::fake::test".to_string(), 0),
             get_base_name_and_width("std::fake::test[0]")
-        );
-    }
-
-    #[test]
-    fn test_packed_io_expansion() {
-        let mut hasher = WireHasher::new();
-
-        let packed: PackedBlifCircuitDesc<bool> = PackedBlifCircuitDesc {
-            inputs: vec!["in[0]".to_string(), "in[1]".to_string()],
-            outputs: vec!["out".to_string()],
-            packed_wires: HashMap::<String, usize>::from_iter(IntoIterator::into_iter([
-                ("in".to_string(), 4),
-                ("out".to_string(), 3),
-            ])),
-            ..Default::default()
-        };
-
-        let unpacked: BlifCircuitDesc<bool> = (packed, &mut hasher).into();
-
-        assert_eq!(unpacked.inputs.len(), 8);
-        assert_eq!(unpacked.outputs.len(), 3);
-
-        assert_eq!(
-            unpacked.inputs,
-            vec![
-                hasher.get_wire_id("in[3]"),
-                hasher.get_wire_id("in[2]"),
-                hasher.get_wire_id("in[1]"),
-                hasher.get_wire_id("in[0]"),
-                hasher.get_wire_id("in[7]"),
-                hasher.get_wire_id("in[6]"),
-                hasher.get_wire_id("in[5]"),
-                hasher.get_wire_id("in[4]"),
-            ]
-        );
-        assert_eq!(
-            unpacked.outputs,
-            vec![
-                hasher.get_wire_id("out[2]"),
-                hasher.get_wire_id("out[1]"),
-                hasher.get_wire_id("out[0]"),
-            ]
         );
     }
 
