@@ -385,7 +385,14 @@ pub fn dump_vcd(
                     bool_wires[dst] = bool_wires[src] & c;
                     dumper.dump_bool(dst, bool_wires[dst]);
                 }
-                Operation::AssertZero(_) => {}
+                Operation::AssertZero(src) => {
+                    if !bool_wires[src] {
+                        println!(
+                            "Expected false for boolean wire {}, got {}",
+                            src, bool_wires[src]
+                        );
+                    }
+                }
                 Operation::Const(dst, c) => {
                     bool_wires[dst] = c;
                     dumper.dump_bool(dst, bool_wires[dst]);
@@ -425,7 +432,14 @@ pub fn dump_vcd(
                     arith_wires[dst] = arith_wires[src].wrapping_mul(c);
                     dumper.dump_arith(dst, arith_wires[dst]);
                 }
-                Operation::AssertZero(_src) => {}
+                Operation::AssertZero(src) => {
+                    if arith_wires[src] != 0u64 {
+                        println!(
+                            "Expected 0 for arithmetic wire {}, got {}",
+                            src, arith_wires[src]
+                        );
+                    }
+                }
                 Operation::Const(dst, c) => {
                     arith_wires[dst] = c;
                     dumper.dump_arith(dst, arith_wires[dst]);

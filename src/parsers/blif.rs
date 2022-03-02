@@ -153,12 +153,14 @@ impl<T: WireValue> BlifCircuitDesc<T> {
     }
 
     pub fn validate_io(&self) {
-
         if let Some(max_input) = self.inputs.iter().max() {
             let min_input = self.inputs.iter().min().unwrap();
 
             if (max_input - min_input) != (self.inputs.len() - 1) {
-                panic!("{}'s inputs are not contiguous!\n{:?}", self.name, self.inputs)
+                panic!(
+                    "{}'s inputs are not contiguous!\n{:?}",
+                    self.name, self.inputs
+                )
             }
         }
 
@@ -166,10 +168,12 @@ impl<T: WireValue> BlifCircuitDesc<T> {
             let min_output = self.outputs.iter().min().unwrap();
 
             if (max_output - min_output) != (self.outputs.len() - 1) {
-                panic!("{}'s outputs are not contiguous!\n{:?}", self.name, self.outputs)
+                panic!(
+                    "{}'s outputs are not contiguous!\n{:?}",
+                    self.name, self.outputs
+                )
             }
         }
-
     }
 }
 
@@ -559,13 +563,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{VecDeque};
-    
+    use std::collections::VecDeque;
 
     use crate::parsers::blif::{
         get_base_name_and_width, parse_gate, parse_io, parse_subcircuit, split_wire_id,
     };
-    
 
     #[test]
     fn test_gate_parsing() {
