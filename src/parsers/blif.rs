@@ -559,14 +559,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, VecDeque};
-    use std::iter::FromIterator;
+    use std::collections::{VecDeque};
+    
 
     use crate::parsers::blif::{
         get_base_name_and_width, parse_gate, parse_io, parse_subcircuit, split_wire_id,
-        BlifCircuitDesc, PackedBlifCircuitDesc,
     };
-    use crate::parsers::WireHasher;
+    
 
     #[test]
     fn test_gate_parsing() {
