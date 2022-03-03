@@ -445,17 +445,35 @@ where
                         let mut connections: Vec<(usize, usize)> = Vec::new();
                         for (child_name, parent_name) in io_pairings.drain(..) {
                             let child_unpacked = split_wire_id(child_name);
-                            let parent_unpacked = split_wire_id(parent_name);
+                            let mut parent_unpacked = split_wire_id(parent_name);
 
-                            assert_eq!(
-                                child_unpacked.len(),
-                                parent_unpacked.len(),
-                                "{} didn't expand to the same size as {}",
-                                child_name,
-                                parent_name
-                            );
+                            if child_unpacked.len() != parent_unpacked.len() {
+                                if parent_name == "$false" || parent_name == "$true" {
+                                    parent_unpacked =
+                                        vec![parent_name.into(); child_unpacked.len()];
+                                } else {
+                                    panic!(
+                                        "{} expanded to {} bits, but {} expanded to {} bits",
+                                        child_name,
+                                        child_unpacked.len(),
+                                        parent_name,
+                                        parent_unpacked.len()
+                                    );
+                                }
+                            }
 
-                            for (cname, pname) in child_unpacked.iter().zip(parent_unpacked.iter())
+                            // Does the `rev` on `parent_unpacked` seem weird to you? Well, it should! If a subcircuit wire uses one index convention
+                            // ([hi: lo]) and the parent wire uses another ([lo:hi]), Yosys will expect that the bit indices are inverted when
+                            // hooking up the subcircuit. For that reason, we swap around the parent wires and use descending order.
+                            // This won't always be the case. In the MSP430 circuit, all the wires in the top-level circuit use the same
+                            // convention, and all the wires in the subcircuits use the same (opposite) convention, so universal inverting works
+                            // fine here. If you use the same convention in the top-level as the subcircuits, you'll need to flip this around. If you
+                            // mix and match conventions between different subcircuits, it won't work _at all_ because we don't annotate packed wires
+                            // with an ordering convention.
+
+                            // Hopefully I remembered to document this somewhere else too. If not, sorry. At least now you know...
+                            for (cname, pname) in
+                                child_unpacked.iter().zip(parent_unpacked.iter().rev())
                             {
                                 connections.push((
                                     self.hasher
@@ -484,41 +502,20 @@ where
                             .push(self.construct_variant("BUF", to, &[from], None))
                     }
                     ".end" => {
-                        if current.gates.is_empty() && current.subcircuits.is_empty() {
-                            println!("Warning: Dropping empty module {}", current.name);
-
-                            current = Default::default();
-
-                            current.gates.push(self.construct_variant(
-                                "CONST",
-                                0,
-                                &[],
-                                Some(self.constant_from_str("$false")),
-                            ));
-                            current.gates.push(self.construct_variant(
-                                "CONST",
-                                1,
-                                &[],
-                                Some(self.constant_from_str("$true")),
-                            ));
-
-                            continue;
-                        } else {
-                            self.circuit.push(take(&mut current));
-                            // Push const gates for true & false
-                            current.gates.push(self.construct_variant(
-                                "CONST",
-                                0,
-                                &[],
-                                Some(self.constant_from_str("$false")),
-                            ));
-                            current.gates.push(self.construct_variant(
-                                "CONST",
-                                1,
-                                &[],
-                                Some(self.constant_from_str("$true")),
-                            ));
-                        }
+                        self.circuit.push(take(&mut current));
+                        // Push const gates for true & false
+                        current.gates.push(self.construct_variant(
+                            "CONST",
+                            0,
+                            &[],
+                            Some(self.constant_from_str("$false")),
+                        ));
+                        current.gates.push(self.construct_variant(
+                            "CONST",
+                            1,
+                            &[],
+                            Some(self.constant_from_str("$true")),
+                        ));
                     }
                     _ => (),
                 }
