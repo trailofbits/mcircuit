@@ -1,5 +1,7 @@
 # mcircuit
-A library of types for working with arithmetic circuits
+A library of types for working with boolean & arithmetic circuits
+
+View on [docs.rs](https://docs.rs/mcircuit/latest/mcircuit/)
 
 ## Features
  - [x] : Circuit type

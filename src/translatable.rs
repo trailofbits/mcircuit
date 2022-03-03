@@ -3,13 +3,19 @@ use std::collections::HashMap;
 use crate::io_extractors::{InputIterator, OutputIterator};
 use crate::{CombineOperation, HasIO, OpType, Operation, WireValue};
 
+/// Defines a number of helper methods for replacing the I/O wires on a gate with new ones
 pub trait Translatable {
+    /// takes an iterator of input wires and an iterator of output wires, and creates a new gate
+    /// of the same type using the inputs and outputs. The current input and output wires have
+    /// no bearing on the new wires, just the gate type.
     fn translate<I1, I2>(&self, win: I1, wout: I2) -> Option<Self>
     where
         Self: Sized,
         I1: Iterator<Item = usize>,
         I2: Iterator<Item = usize>;
 
+    /// Takes a hashmap, and looks for existing wires in the keys. Replaces any existing wire keys
+    /// with the value from the hashmap.
     fn translate_from_hashmap<'a>(
         &'a self,
         translation_table: HashMap<usize, usize>,
@@ -27,6 +33,7 @@ pub trait Translatable {
         )
     }
 
+    /// Calls a function on the I/O wires and replaces them with the output of the function.
     fn translate_from_fn<'a>(
         &'a self,
         input_mapper: fn(usize) -> usize,

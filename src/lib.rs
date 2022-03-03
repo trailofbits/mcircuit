@@ -1,3 +1,13 @@
+//! MCircuit (pronounced mc-urkit) provides a series of types and traits for working with circuits.
+//! Specifically, arithmetic circuits on GF2 and Z64, the former of which are effectively boolean
+//! circuits. It is used by [Reverie](https://github.com/trailofbits/reverie).
+//!
+//! MCircuit includes:
+//! * A circuit parsing library for BLIF files
+//! * Code for evaluating circuits in its gate format
+//! * Traits for constructing, translating, and iterating over gates
+//! * Code to export circuits in the Bristol Fashion format
+
 #[macro_use]
 extern crate variant_count;
 
@@ -6,7 +16,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-pub use eval::{evaluate_composite_program, largest_wires, smallest_wires};
+pub use eval::{dump_vcd, evaluate_composite_program, largest_wires, smallest_wires, VcdDumper};
 pub use has_const::HasConst;
 pub use has_io::HasIO;
 pub use identity::Identity;
@@ -24,6 +34,8 @@ pub mod parsers;
 mod tests;
 mod translatable;
 
+/// Implemented for acceptable types to use as wire values. It would be nice if this could just
+/// be a set of required traits, but `num_traits::is_zero` isn't implemented for `bool`.
 pub trait WireValue: Copy + PartialEq + std::fmt::Debug + Serialize {
     fn is_zero(&self) -> bool;
 
@@ -50,18 +62,24 @@ impl WireValue for u64 {
     }
 }
 
+/// Defines the individual logic gate operations we can support
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, VariantCount)]
 pub enum Operation<T: WireValue> {
     /// Read a value from input and emit it on the wire
     Input(usize),
     /// Emit a random value on the wire
     Random(usize),
+    /// Add the two wires together
     Add(usize, usize, usize),
+    /// Add the wire and the constant
     AddConst(usize, usize, T),
     /// Subtract the final wire from the second wire
     Sub(usize, usize, usize),
+    /// Subtract the constant value from the wire
     SubConst(usize, usize, T),
+    /// Multiply the two wires together
     Mul(usize, usize, usize),
+    /// Multiply the first wire by the constant value
     MulConst(usize, usize, T),
     /// Assert that the wire has the const value zero
     AssertZero(usize),
@@ -69,6 +87,7 @@ pub enum Operation<T: WireValue> {
     Const(usize, T),
 }
 
+/// Defines the possible semantics of the different operands; used to generate random circuits
 #[derive(Clone, Copy)]
 enum OpType<T: WireValue> {
     /// (dst)
@@ -83,6 +102,7 @@ enum OpType<T: WireValue> {
     BinaryConst(fn(usize, usize, T) -> Operation<T>),
 }
 
+/// Wraps `Operation` to define a field for each gate. Also supports conversions and metadata.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum CombineOperation {
     /// Circuit Operation on GF2 Finite Field
@@ -90,8 +110,8 @@ pub enum CombineOperation {
     /// Circuit Operation on 64-bit integer ring
     Z64(Operation<u64>),
 
-    /// Converts a value on GF2 to a value on Z64
-    /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice
+    /// Converts a value on GF2 to a value on Z64.
+    /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice.
     /// This means that the least significant bit of the Z64 value will come from the
     /// GF2 wire with the lowest index. Make sure your circuits are designed accordingly.
     B2A(usize, usize),
@@ -102,6 +122,7 @@ pub enum CombineOperation {
 }
 
 impl<T: WireValue> Operation<T> {
+    /// Convenient way to get a random gate for testing
     fn random_variant<R: Rng + ?Sized>(rng: &mut R) -> OpType<T> {
         match rng.gen_range(0..Operation::<T>::VARIANT_COUNT) {
             0 => OpType::Input(Operation::Input),
@@ -120,6 +141,7 @@ impl<T: WireValue> Operation<T> {
         }
     }
 
+    /// Rebuild a gate from its fundamental components. Used by parsers to go from text to gates.
     fn construct<I1, I2>(
         ty: OpType<T>,
         mut inputs: I1,
@@ -184,6 +206,7 @@ where
     }
 }
 
+/// Conglomerate trait that wraps all the other useful traits defined in this module.
 pub trait Gate<T>: HasIO + HasConst<T> + Translatable + Identity<T> {}
 impl Gate<u64> for Operation<u64> {}
 impl Gate<bool> for Operation<bool> {}

@@ -3,8 +3,12 @@ use num_traits::{One, Zero};
 use crate::{CombineOperation, Operation};
 
 pub trait Identity<T> {
+    /*! Trait related to buffer gates. If the gate doesn't change its input value (ie adding zero,
+    multiplying by one), then we say this is an "identity" gate, eligible to be folded out. !*/
+
     fn is_identity(&self) -> bool;
 
+    /// Used to produce an identity gate on the current field when needed.
     fn identity(w_out: usize, w_in: usize) -> Self;
 }
 

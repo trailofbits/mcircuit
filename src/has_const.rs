@@ -1,6 +1,8 @@
 use crate::{CombineOperation, Operation, WireValue};
 
 pub trait HasConst<T> {
+    /// For gates that include constant data (AddConst, MulConst, etc) provides a method to access
+    /// the constant. Returns `None` for all other types of gates.
     fn constant(&self) -> Option<T>;
 }
 

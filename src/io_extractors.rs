@@ -1,4 +1,7 @@
 use crate::{CombineOperation, Operation, WireValue};
+/**
+Defines iterators for getting the inputs and outputs of a gate. Works for both CombineOperation and Operation
+*/
 
 pub struct InputIterator<'a, T> {
     op: &'a T,
