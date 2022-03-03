@@ -1,6 +1,10 @@
 #[macro_use]
 extern crate variant_count;
 
+//! MCircuit (pronounced mc-urkit) provides a series of types and traits for working with circuit.
+//! Specifically, arithmetic circuits on GF2 and Z64, the former of which are effectively boolean
+//! circuits. It is used by [Reverie](https://github.com/trailofbits/reverie).
+
 use num_traits::Zero;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
@@ -100,8 +104,8 @@ pub enum CombineOperation {
     /// Circuit Operation on 64-bit integer ring
     Z64(Operation<u64>),
 
-    /// Converts a value on GF2 to a value on Z64
-    /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice
+    /// Converts a value on GF2 to a value on Z64.
+    /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice.
     /// This means that the least significant bit of the Z64 value will come from the
     /// GF2 wire with the lowest index. Make sure your circuits are designed accordingly.
     B2A(usize, usize),
