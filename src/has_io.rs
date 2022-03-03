@@ -26,6 +26,8 @@ impl HasIO for CombineOperation {
 }
 
 pub trait HasIO {
+    //! Applies to all gates, allows access to the input and output wire IDs of the gates
+
     fn inputs(&self) -> InputIterator<Self>
     where
         Self: Sized;
@@ -38,6 +40,8 @@ pub trait HasIO {
         Self: 'a + Sized,
         OutputIterator<'a, Self>: Iterator<Item = usize>,
     {
+        //! For convenience, allows access to the (optional) output, since each gate only
+        //! ever has one at most.
         self.outputs().next()
     }
 }

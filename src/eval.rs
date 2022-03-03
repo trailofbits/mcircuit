@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-// Evaluates a composite program (in the clear)
+/// Evaluates a composite program (in the clear). Uses assert! to check `AssertZero` gates
 pub fn evaluate_composite_program(
     program: &[CombineOperation],
     bool_inputs: &[bool],
@@ -108,12 +108,14 @@ pub fn evaluate_composite_program(
     }
 }
 
+/// Used by VCD Dumper to represent one scope. Scopes can have their own wires _and_ subscopes.
 #[derive(std::cmp::Eq, std::cmp::PartialEq, std::hash::Hash)]
 enum ScopeEntry {
     Terminal((String, usize)),
     SubScope(String),
 }
 
+/// Indicate which field we're operating on for a scope
 #[derive(Clone, Copy)]
 enum ScopeType {
     Bool,
@@ -125,6 +127,11 @@ pub struct VcdDumper {
 }
 
 impl VcdDumper {
+    /// Uses `WireHasher.backref` to recover scope information from hashed wires in a circuit. With
+    /// our circuit pipeline, this is ONLY RELIABLE FOR TOP-LEVEL INPUTS & OUTPUTS because the flattener
+    /// translates & minimizes all other wires after hashing occurs. Still, it can be useful for
+    /// diagnosing whether you're seeing the output you expect when crossing from the boolean to the
+    /// arithmetic bound, and with changes to the flattener it could be made to work for all wires.
     pub fn for_circuit(
         mut writer: BufWriter<File>,
         circuit: &[CombineOperation],
@@ -144,16 +151,23 @@ impl VcdDumper {
                         };
                         let mut current_scope: &str = "bool_context";
 
+                        // We use :: to differentiate between scopes. This is a convention only used
+                        // by the BLIF parser, so it won't apply for other circuits.
                         let mut scope_tokens = backref.split("::").peekable();
+                        // I didn't want to implement a nested hashmap, so instead we store all the
+                        // scopes in the same hashmap, and use "subscope" entries as pointers to different
+                        // entries. This involves some chasing to get to the correct entry.
                         while let Some(t) = scope_tokens.next() {
                             if scope_tokens.peek().is_some() {
-                                // If this is an intermediate scope
+                                // If there are more scopes after this one, this is an intermediate scope.
+                                // We add a subscope entry and then chase it to the next scope.
                                 bool_scopes
                                     .entry(current_scope.into())
                                     .or_insert_with(HashSet::new)
                                     .insert(ScopeEntry::SubScope(t.into()));
                                 current_scope = t;
                             } else {
+                                // When we get to the final entry, we add this wire to the current scope.
                                 bool_scopes
                                     .entry(current_scope.into())
                                     .or_insert_with(HashSet::new)
@@ -168,6 +182,9 @@ impl VcdDumper {
                             None => wire.to_string(),
                             Some(s) => s.clone(),
                         };
+
+                        // Ditto on how the boolean scope parsing works, but we use a different
+                        // hashmap to store the arithmetic wires.
                         let mut current_scope: &str = "arith_context";
 
                         let mut scope_tokens = backref.split("::").peekable();
@@ -189,12 +206,16 @@ impl VcdDumper {
                     }
                 }
                 CombineOperation::B2A(dst, low) => {
+                    // B2A gates are weird because they live in both the boolean and arithmetic
+                    // contexts. Right now, we track them, but don't actually dump them to the file.
+
                     let backref: String = match arith_hasher.backref(*dst) {
                         None => dst.to_string(),
                         Some(s) => s.clone(),
                     };
                     let mut current_scope: &str = "b2a_context";
 
+                    // Arithmetic wires are handled normally
                     let mut scope_tokens = backref.split("::").peekable();
                     while let Some(t) = scope_tokens.next() {
                         if scope_tokens.peek().is_some() {
@@ -212,6 +233,9 @@ impl VcdDumper {
                         }
                     }
 
+                    // For boolean wires, we need to track all 64 bits. I guess. They're inputs so
+                    // they really ought to be captured by the gates that write to them already, but
+                    // you might have a bad circuit structure.
                     for wire in *low..*low + 64 {
                         let backref: String = match bool_hasher.backref(wire) {
                             None => wire.to_string(),
@@ -241,11 +265,14 @@ impl VcdDumper {
             }
         }
 
+        // Write the VCD header preamble
         writer
             .write_all("$version Generated by mcircuit $end\n$timescale 1ns $end\n\n".as_ref())
             .unwrap();
+        // Write the boolean scope.
         VcdDumper::write_scope("bool_context", ScopeType::Bool, &mut writer, &bool_scopes)
             .expect("Failed to write Boolean scopes");
+        // Write the arithmetic scope
         VcdDumper::write_scope(
             "arith_context",
             ScopeType::Arith,
@@ -253,6 +280,7 @@ impl VcdDumper {
             &arith_scopes,
         )
         .expect("Failed to write Arithmetic scopes");
+
         // VcdDumper::write_scope(
         //     &"b2a_context".to_string(),
         //     ScopeType::Bool,
@@ -265,6 +293,10 @@ impl VcdDumper {
         //     &mut writer,
         //     &arith_scopes,
         // ).expect("Failed to write arithmetic B2A scope");
+
+        // Write the end of the VCD header. This one worked with GTKWave for me, but didn't quite
+        // match what I found on wikipedia and in this blog post: https://zipcpu.com/blog/2017/07/31/vcd.html
+        // I suggest exporting something from GTKWave and looking at how they do it.
         writer
             .write_all("\n$enddefinitions $end\n#0\n$dumpvars\n".as_ref())
             .unwrap();
@@ -272,6 +304,8 @@ impl VcdDumper {
         VcdDumper { writer }
     }
 
+    /// Recursively dumps a scope and all of its sub-scopes. _Shouldn't_ infinitely recurse unless
+    /// you have an un-flattened recursively-defined module, in which case: consider not doing that
     fn write_scope(
         scope: &str,
         scope_type: ScopeType,
@@ -279,13 +313,17 @@ impl VcdDumper {
         scopes: &HashMap<String, HashSet<ScopeEntry>>,
     ) -> Result<(), ()> {
         if let Some(current) = scopes.get(scope) {
+            // Write the scope header
             writer
                 .write_all(format!("$scope module {} $end\n", scope).as_ref())
                 .unwrap();
 
             for entry in current {
                 match entry {
+                    // Write wires in this scope
                     ScopeEntry::Terminal((label, wire)) => {
+                        // We can't use bare numbers for wires, so we choose an arbitrary prefix for
+                        // each domain
                         let (width, prefix) = match scope_type {
                             ScopeType::Bool => (1, "!"),
                             ScopeType::Arith => (64, "@"),
@@ -297,12 +335,18 @@ impl VcdDumper {
                                     width,
                                     prefix,
                                     wire,
+                                    // GTKWave doesn't completely break, but displays the file weird
+                                    // if you try to leave the square brackets in. At some point we
+                                    // might want a post-processor that reads the bracketed entries
+                                    // and compresses them into multi-bit buses instead of having one
+                                    // boolean wire per bit, but I didn't have the time.
                                     label.replace('[', "(").replace(']', ")")
                                 )
                                 .as_ref(),
                             )
                             .unwrap();
                     }
+                    // Otherwise, define a new sub-scope and dump that
                     ScopeEntry::SubScope(sub) => {
                         VcdDumper::write_scope(sub, scope_type, writer, scopes)
                             .expect(&*format!("No scope called {}", sub));
@@ -310,6 +354,7 @@ impl VcdDumper {
                 }
             }
 
+            // Write the terminal for the current scope
             writer.write_all("$upscope $end\n".as_ref()).unwrap();
             Ok(())
         } else {
@@ -317,24 +362,30 @@ impl VcdDumper {
         }
     }
 
+    /// Write a formatted boolean value into the VCD file. Can only be one bit.
     pub fn dump_bool(&mut self, dst: usize, val: bool) {
         self.writer
             .write_all(format!("{}!{}\n", if val { "1" } else { "0" }, dst).as_ref())
             .unwrap();
     }
 
+    /// Write a 64-bit integer into the VCD file.
     pub fn dump_arith(&mut self, dst: usize, val: u64) {
         self.writer
             .write_all(format!("b{:b} @{}\n", val, dst).as_ref())
             .unwrap();
     }
 
+    /// Write the end of the data dump section with some extra timing entries to make gtkwave show
+    /// a wider display.
     pub fn finish(&mut self) {
         self.writer.write_all("$end\n#1\n#10\n".as_ref()).unwrap();
         self.writer.flush().unwrap();
     }
 }
 
+/// Copies most of the code from `evaluate_composite_program`, but takes a `VcdDumper` and dumps the
+/// value of each destination wire after evaluating a gate.
 pub fn dump_vcd(
     program: &[CombineOperation],
     bool_inputs: &[bool],
@@ -468,6 +519,8 @@ pub fn dump_vcd(
     dumper.finish();
 }
 
+/// Get the largest (arithmetic, boolean) wires in a program so we know how much memory to allocate.
+/// Respects size hints, if present at the start of the circuit
 pub fn largest_wires(program: &[CombineOperation]) -> (usize, usize) {
     if let CombineOperation::SizeHint(z64_cells, gf2_cells) = program[0] {
         (z64_cells, gf2_cells)
@@ -476,6 +529,8 @@ pub fn largest_wires(program: &[CombineOperation]) -> (usize, usize) {
     }
 }
 
+/// Get the largest (arithmetic, boolean) wires in a program so we know how much memory to allocate.
+/// Does _NOT_ respect size hints.
 pub fn smallest_wires(program: &[CombineOperation]) -> (usize, usize) {
     WireCounter::default().analyze(program).1
 }

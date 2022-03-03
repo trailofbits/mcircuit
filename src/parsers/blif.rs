@@ -1,5 +1,5 @@
 use num_traits::Zero;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{VecDeque};
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -10,11 +10,13 @@ use crate::parsers::{Parse, WireHasher};
 use crate::WireValue;
 use crate::{OpType, Operation};
 
+/// Parses single wire pairs of the format `parent=child`. Returns (parent, child)
 pub fn parse_split(pair: &str) -> (&str, &str) {
     let mut split = pair.split('=');
     (split.next().unwrap(), split.next().unwrap())
 }
 
+/// Parses a gate into an operand, an output wire, and input wires. Returns in that order.
 fn parse_gate(mut line: VecDeque<&str>) -> (&str, &str, Vec<&str>) {
     let op = line.pop_front().unwrap();
     let (_, out) = parse_split(line.pop_back().unwrap());
@@ -23,6 +25,7 @@ fn parse_gate(mut line: VecDeque<&str>) -> (&str, &str, Vec<&str>) {
     (op, out, inputs)
 }
 
+/// Parses a line of inputs or outputs into individual wires, then individual bits.
 fn parse_io(mut line: VecDeque<&str>) -> Vec<Vec<&str>> {
     let mut out: Vec<Vec<&str>> = Vec::new();
     while !line.is_empty() {
@@ -37,6 +40,7 @@ fn parse_io(mut line: VecDeque<&str>) -> Vec<Vec<&str>> {
     out
 }
 
+/// Parses a subcircuit line into the name of the circuit, then the list of I/O connections.
 fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     let name = line.pop_front().unwrap();
     let io: Vec<(&str, &str)> = line.drain(..).map(parse_split).collect();
@@ -44,6 +48,7 @@ fn parse_subcircuit(mut line: VecDeque<&str>) -> (&str, Vec<(&str, &str)>) {
     (name, io)
 }
 
+/// Splits up a wire that ends with a bit index (`input[3]`) into individual components (`("input", 3)`)
 pub fn get_base_name_and_width(unparsed: &str) -> (String, usize) {
     let (base_name, after): (String, Option<&str>) = match unparsed.split_once('[') {
         None => (unparsed.into(), None),
@@ -61,6 +66,8 @@ pub fn get_base_name_and_width(unparsed: &str) -> (String, usize) {
     (base_name, idx)
 }
 
+/// Returns `{context}::{id}`. Double colon syntax is used by the VCD dumper to separate scopes.
+/// Ignores `$true` and `$false` and rejects `$undef`.
 pub fn format_wire_id(context: &str, id: &str) -> String {
     if (id == "$true") || (id == "$false") {
         id.to_string()
@@ -71,6 +78,8 @@ pub fn format_wire_id(context: &str, id: &str) -> String {
     }
 }
 
+/// A set of data that represents the information about a circuit we can glean from the BLIF file.
+/// May have multiple circuits per file.
 #[derive(Clone)]
 pub struct BlifCircuitDesc<T: WireValue> {
     pub name: String,
@@ -80,37 +89,12 @@ pub struct BlifCircuitDesc<T: WireValue> {
     pub subcircuits: Vec<BlifSubcircuitDesc>,
 }
 
-#[derive(Clone)]
-pub struct PackedBlifCircuitDesc<T: WireValue> {
-    pub name: String,
-    pub inputs: Vec<String>,
-    pub outputs: Vec<String>,
-    pub gates: Vec<Operation<T>>,
-    pub subcircuits: Vec<BlifSubcircuitDesc>,
-    pub packed_wires: HashMap<String, usize>,
-}
-
+/// Defines the relation between a circuit and its subcircuits
 #[derive(Clone)]
 pub struct BlifSubcircuitDesc {
     pub name: String,
+    /// A set of wire ID connections in the format `(parent, subcircuit)`
     pub connections: Vec<(usize, usize)>,
-}
-
-#[derive(Clone)]
-pub struct PackedSubcircuitDesc {
-    pub name: String,
-    pub connections: Vec<(String, String)>,
-    pub packed_wires: HashMap<String, usize>,
-}
-
-impl Default for PackedSubcircuitDesc {
-    fn default() -> Self {
-        PackedSubcircuitDesc {
-            name: "".to_string(),
-            connections: vec![],
-            packed_wires: HashMap::new(),
-        }
-    }
 }
 
 impl Default for BlifSubcircuitDesc {
@@ -134,24 +118,16 @@ impl<T: WireValue> Default for BlifCircuitDesc<T> {
     }
 }
 
-impl<T: WireValue> Default for PackedBlifCircuitDesc<T> {
-    fn default() -> Self {
-        PackedBlifCircuitDesc {
-            name: "".to_string(),
-            inputs: vec![],
-            outputs: vec![],
-            gates: vec![],
-            subcircuits: vec![],
-            packed_wires: HashMap::new(),
-        }
-    }
-}
-
 impl<T: WireValue> BlifCircuitDesc<T> {
+    /// Just pushes to `self.subcircuit`. Used to do packed wire expansion but that's handled
+    /// elsewhere now.
     fn add_subcircuit(&mut self, sub: BlifSubcircuitDesc) {
         self.subcircuits.push(sub)
     }
 
+    /// Checks that input and output wires are contiguous blocks, which they _should_ be in the
+    /// top-level circuit after the hashing process. Later called by the flattener on the top-level
+    /// circuit. It doesn't necessarily have to be true for anything but the top-level.
     pub fn validate_io(&self) {
         if let Some(max_input) = self.inputs.iter().max() {
             let min_input = self.inputs.iter().min().unwrap();
@@ -177,6 +153,9 @@ impl<T: WireValue> BlifCircuitDesc<T> {
     }
 }
 
+/// This trait lets us introduce some genericity into the parsing process. We can construct boolean
+/// and u64 variants of gates. Results in some very similar code, but we need it since the names of
+/// gates in an arithmetic context and boolean context are different.
 pub trait CanConstructVariant<T: WireValue> {
     fn construct_variant(
         &mut self,
@@ -193,6 +172,7 @@ pub struct BlifParser<T: WireValue> {
     reader: Option<BufReader<File>>,
     pub hasher: WireHasher,
     parsed: bool,
+    /// Vector - can have more than one circuit descriptor per file.
     circuit: Vec<BlifCircuitDesc<T>>,
 }
 
@@ -207,6 +187,7 @@ impl<T: WireValue> Default for BlifParser<T> {
     }
 }
 
+/// Translates tokens into boolean gates
 impl CanConstructVariant<bool> for BlifParser<bool> {
     fn construct_variant(
         &mut self,
@@ -267,6 +248,7 @@ impl CanConstructVariant<bool> for BlifParser<bool> {
     }
 }
 
+/// Translates tokens into arithmetic gates
 impl CanConstructVariant<u64> for BlifParser<u64> {
     fn construct_variant(
         &mut self,
@@ -345,6 +327,11 @@ impl CanConstructVariant<u64> for BlifParser<u64> {
     }
 }
 
+/// Breaks up wires that contain `_PACKED_<width>` into `<width>` bits. Uglier than the old `.attr`
+/// technique, but much easier to develop and debug because the packing is part of the wire name,
+/// whereas with attributes you don't find out that a wire is packed until _after_ you've parsed it.
+/// You end up needing to save a lot of things until after you've parsed the next several lines, _then_
+/// parse them all at once, which gets complicated.
 pub fn split_wire_id(id: &str) -> Vec<String> {
     if id.contains("_PACKED_") {
         let (base, idx) = get_base_name_and_width(id);
@@ -356,12 +343,19 @@ pub fn split_wire_id(id: &str) -> Vec<String> {
                 let width: usize = width_dec
                     .parse()
                     .unwrap_or_else(|_| panic!("Can't parse {} as an integer", width_dec));
+                // If we ever add endianness information to packed wire names, you could throw a
+                // `.rev()` in here
                 (0..width)
+                    // Multiply the current index by the width of the wire, then add the current bit
+                    // index.
                     .map(|i| format!("{}[{}]", name, (width * idx) + i))
                     .collect()
             }
         }
     } else {
+        // I'd love to figure out how to return an iterator here, but since something needs to own
+        // the formatted strings in the other case, I'm not sure it's possible. If only we could
+        // partially apply arguments to `format`...
         vec![id.to_string()]
     }
 }
@@ -405,11 +399,17 @@ where
                         current.name = line.pop_front().unwrap().into();
                     }
                     ".inputs" => {
+                        // Break up the I/O line into chunks for each wire
                         for chunk in parse_io(line) {
+                            // Yosys gives us the wire IDs in descending order in MSP430 because the
+                            // top-level circuit uses [lo:hi] for indexing. With packed wires, this
+                            // shouldn't matter.
                             for name_maybe_packed in chunk.iter().rev() {
+                                // Split the wire ID into multiple (if it's packed)
                                 for name in split_wire_id(name_maybe_packed) {
+                                    // Format it with the current module name
                                     let formatted = format_wire_id(&current.name, &name);
-                                    // Save the name for later unpacking, not the ID
+                                    // Take the hash and save it.
                                     current.inputs.push(self.hasher.get_wire_id(&formatted));
                                 }
                             }
@@ -420,7 +420,6 @@ where
                             for name_maybe_packed in chunk.iter().rev() {
                                 for name in split_wire_id(name_maybe_packed) {
                                     let formatted = format_wire_id(&current.name, &name);
-                                    // Save the name for later unpacking, not the ID
                                     current.outputs.push(self.hasher.get_wire_id(&formatted));
                                 }
                             }
@@ -428,7 +427,9 @@ where
                     }
                     ".gate" => {
                         let (op, out, mut inputs) = parse_gate(line);
+                        // get the output
                         let out_id = self.hasher.get_wire_id(&format_wire_id(&current.name, out));
+                        // get the inputs
                         let input_ids: Vec<usize> = inputs
                             .drain(..)
                             .map(|name| {
@@ -436,6 +437,7 @@ where
                                     .get_wire_id(&format_wire_id(&current.name, name))
                             })
                             .collect();
+                        // Turn the strings and wire IDs into an `Operation`
                         current
                             .gates
                             .push(self.construct_variant(op, out_id, &input_ids, None));
@@ -444,14 +446,20 @@ where
                         let (name, mut io_pairings) = parse_subcircuit(line);
                         let mut connections: Vec<(usize, usize)> = Vec::new();
                         for (child_name, parent_name) in io_pairings.drain(..) {
+                            // Split both the parent and child connections if they're both packed
                             let child_unpacked = split_wire_id(child_name);
                             let mut parent_unpacked = split_wire_id(parent_name);
 
                             if child_unpacked.len() != parent_unpacked.len() {
+                                // We can handle packed wires that connect to const gates by just
+                                // duplicating the connection
                                 if parent_name == "$false" || parent_name == "$true" {
                                     parent_unpacked =
                                         vec![parent_name.into(); child_unpacked.len()];
-                                } else {
+                                }
+                                // but any other time we have a mismatch in sizes, it's not clear
+                                // what to do
+                                else {
                                     panic!(
                                         "{} expanded to {} bits, but {} expanded to {} bits",
                                         child_name,
@@ -460,6 +468,8 @@ where
                                         parent_unpacked.len()
                                     );
                                 }
+                                // I mean maybe if one wire is packed and the other is a single bit,
+                                // we could expand the single wire, but we haven't needed that yet.
                             }
 
                             // Does the `rev` on `parent_unpacked` seem weird to you? Well, it should! If a subcircuit wire uses one index convention
@@ -490,6 +500,8 @@ where
 
                         current.add_subcircuit(subc);
                     }
+                    // These lines shouldn't be generated using the Yosys settings we've chosen, so if you see them, maybe
+                    // double check that the undersigned logic is actually correct.
                     ".names" | ".conn" => {
                         let from = self
                             .hasher
@@ -503,7 +515,7 @@ where
                     }
                     ".end" => {
                         self.circuit.push(take(&mut current));
-                        // Push const gates for true & false
+                        // Push const gates for true & false to the new circuit
                         current.gates.push(self.construct_variant(
                             "CONST",
                             0,
@@ -523,6 +535,8 @@ where
         }
     }
 
+    /// Parse the previous file and prepare to parse the next one on a subsequent call to `next`.
+    /// This lets us split up a circuit across multiple BLIF files for simplicity.
     pub fn add_file(&mut self, new_reader: BufReader<File>) {
         if !self.parsed {
             self.clean_parse();
