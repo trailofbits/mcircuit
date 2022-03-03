@@ -1,5 +1,5 @@
 use num_traits::Zero;
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;

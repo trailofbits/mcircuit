@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate variant_count;
-
 //! MCircuit (pronounced mc-urkit) provides a series of types and traits for working with circuits.
 //! Specifically, arithmetic circuits on GF2 and Z64, the former of which are effectively boolean
 //! circuits. It is used by [Reverie](https://github.com/trailofbits/reverie).
@@ -10,6 +7,9 @@ extern crate variant_count;
 //! * Code for evaluating circuits in its gate format
 //! * Traits for constructing, translating, and iterating over gates
 //! * Code to export circuits in the Bristol Fashion format
+
+#[macro_use]
+extern crate variant_count;
 
 use num_traits::Zero;
 use rand::distributions::{Distribution, Standard};
