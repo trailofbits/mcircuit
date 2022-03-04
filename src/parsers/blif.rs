@@ -67,7 +67,9 @@ pub fn get_base_name_and_width(unparsed: &str) -> (String, usize) {
 }
 
 /// Returns `{context}::{id}`. Double colon syntax is used by the VCD dumper to separate scopes.
-/// Ignores `$true` and `$false` and rejects `$undef`.
+/// Ignores `$true` and `$false` and rejects `$undef`. Since it's currently only used by the VCD
+/// dumper, consider making a release-mode version of this that just returns `id` rather than
+/// calling `format` and doing an extra allocation.
 pub fn format_wire_id(context: &str, id: &str) -> String {
     if (id == "$true") || (id == "$false") {
         id.to_string()
