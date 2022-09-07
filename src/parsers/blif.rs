@@ -1,10 +1,11 @@
-use num_traits::Zero;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::mem::swap;
 use std::mem::take;
+
+use num_traits::Zero;
 
 use crate::parsers::{Parse, WireHasher};
 use crate::WireValue;

@@ -1,5 +1,6 @@
-use crate::{CombineOperation, HasIO};
 use std::cmp::{max, min};
+
+use crate::{CombineOperation, HasIO};
 
 /// Generic trait for running something on all the gates in a circuit. Currently used to count wires
 pub trait AnalysisPass {

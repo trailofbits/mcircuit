@@ -11,16 +11,15 @@
 #[macro_use]
 extern crate variant_count;
 
-use num_traits::Zero;
-use rand::distributions::{Distribution, Standard};
-use rand::Rng;
-use serde::{Deserialize, Serialize};
-
 pub use eval::{dump_vcd, evaluate_composite_program, largest_wires, smallest_wires, VcdDumper};
 pub use has_const::HasConst;
 pub use has_io::HasIO;
 pub use identity::Identity;
+use num_traits::Zero;
 pub use parsers::Parse;
+use rand::distributions::{Distribution, Standard};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 pub use translatable::Translatable;
 
 mod analysis;
