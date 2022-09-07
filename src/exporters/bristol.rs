@@ -1,100 +1,117 @@
+use std::io::{Error, ErrorKind, Result, Write};
+
+use crate::exporters::Export;
 use crate::Operation;
 
-fn bool_gate_to_bristol(gate: &Operation<bool>) -> String {
-    match gate {
-        Operation::Input(w) => {
-            format!("0 1 {} INPUT", w)
-        }
-        Operation::Random(_) => {
-            unimplemented!("Can't use random gates in Bristol")
-        }
-        Operation::Add(o, l, r) => {
-            format!("2 1 {} {} {} XOR", l, r, o)
-        }
-        Operation::AddConst(o, i, c) => {
-            if *c {
-                format!("1 1 {} {} INV", i, o)
-            } else {
-                format!("1 1 {} {} EQW", i, o) // identity gate
-            }
-        }
-        Operation::Sub(o, l, r) => {
-            format!("2 1 {} {} {} XOR", l, r, o) // ADD and SUB are equivalent on GF2
-        }
-        Operation::SubConst(o, i, c) => {
-            if *c {
-                format!("1 1 {} {} INV", i, o)
-            } else {
-                format!("1 1 {} {} EQW", i, o) // identity gate
-            }
-        }
-        Operation::Mul(o, l, r) => {
-            format!("2 1 {} {} {} AND", l, r, o)
-        }
-        Operation::MulConst(o, i, c) => {
-            if *c {
-                format!("1 1 {} {} EQW", i, o) // identity gate
-            } else {
-                format!("1 1 0 {} EQ", o)
-            }
-        }
-        Operation::AssertZero(w) => {
-            // Bristol doesn't really have a concept of output wires _or_ assertions, so this
-            // non-spec representation is the best we can do.
-            format!("0 1 {} OUTPUT", w)
-        }
-        Operation::Const(w, c) => {
-            format!("1 1 {} {} EQ", if *c { 1 } else { 0 }, w)
-        }
-    }
-}
+pub struct BristolFashion;
 
-pub fn bool_circuit_to_bristol(gates: &[Operation<bool>], bool_witness: &[bool]) -> String {
-    let mut circuit: String = String::new();
-    let mut bool_iter = bool_witness.iter();
-
-    for gate in gates {
-        circuit.push_str(
-            format!(
-                "{}\n",
-                match gate {
-                    Operation::Input(o) => {
-                        bool_gate_to_bristol(&Operation::Const(*o, *bool_iter.next().unwrap()))
-                    }
-                    _ => {
-                        bool_gate_to_bristol(gate)
-                    }
+impl Export<bool> for BristolFashion {
+    fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
+        match gate {
+            Operation::Input(w) => {
+                writeln!(sink, "0 1 {} INPUT", w)
+            }
+            Operation::Random(_) => Err(Error::new(
+                ErrorKind::Other,
+                "can't use random gates in Bristol",
+            )),
+            Operation::Add(o, l, r) => {
+                writeln!(sink, "2 1 {} {} {} XOR", l, r, o)
+            }
+            Operation::AddConst(o, i, c) => {
+                if *c {
+                    writeln!(sink, "1 1 {} {} INV", i, o)
+                } else {
+                    writeln!(sink, "1 1 {} {} EQW", i, o) // identity gate
                 }
-            )
-            .as_str(),
-        )
+            }
+            Operation::Sub(o, l, r) => {
+                writeln!(sink, "2 1 {} {} {} XOR", l, r, o) // ADD and SUB are equivalent on GF2
+            }
+            Operation::SubConst(o, i, c) => {
+                if *c {
+                    writeln!(sink, "1 1 {} {} INV", i, o)
+                } else {
+                    writeln!(sink, "1 1 {} {} EQW", i, o) // identity gate
+                }
+            }
+            Operation::Mul(o, l, r) => {
+                writeln!(sink, "2 1 {} {} {} AND", l, r, o)
+            }
+            Operation::MulConst(o, i, c) => {
+                if *c {
+                    writeln!(sink, "1 1 {} {} EQW", i, o) // identity gate
+                } else {
+                    writeln!(sink, "1 1 0 {} EQ", o)
+                }
+            }
+            Operation::AssertZero(w) => {
+                // Bristol doesn't really have a concept of output wires _or_ assertions, so this
+                // non-spec representation is the best we can do.
+                writeln!(sink, "0 1 {} OUTPUT", w)
+            }
+            Operation::Const(w, c) => {
+                writeln!(sink, "1 1 {} {} EQ", if *c { 1 } else { 0 }, w)
+            }
+        }
     }
 
-    circuit
+    fn export_circuit(
+        gates: &[Operation<bool>],
+        witness: &[bool],
+        sink: &mut impl Write,
+    ) -> Result<()> {
+        let mut wit_iter = witness.iter();
+
+        for gate in gates {
+            match gate {
+                Operation::Input(o) => Self::export_gate(
+                    &Operation::Const(
+                        *o,
+                        *wit_iter
+                            .next()
+                            .ok_or_else(|| Error::new(ErrorKind::Other, "witness too short"))?,
+                    ),
+                    sink,
+                )?,
+                _ => Self::export_gate(gate, sink)?,
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::exporters::bristol::bool_circuit_to_bristol;
+    use crate::exporters::bristol::BristolFashion;
+    use crate::exporters::Export;
     use crate::Operation;
 
     #[test]
     fn print_example() {
-        println!(
-            "{}",
-            bool_circuit_to_bristol(
-                &[
-                    Operation::Input(1),
-                    Operation::Input(2),
-                    Operation::Input(3),
-                    Operation::Add(4, 1, 3),
-                    Operation::Add(5, 2, 3),
-                    Operation::Mul(6, 5, 4),
-                    Operation::AddConst(0, 6, true),
-                    Operation::AssertZero(0)
-                ],
-                &[false, false, true]
-            )
+        let mut sink = Vec::new();
+
+        assert!(BristolFashion::export_circuit(
+            &[
+                Operation::Input(1),
+                Operation::Input(2),
+                Operation::Input(3),
+                Operation::Add(4, 1, 3),
+                Operation::Add(5, 2, 3),
+                Operation::Mul(6, 5, 4),
+                Operation::AddConst(0, 6, true),
+                Operation::AssertZero(0)
+            ],
+            &[false, false, true],
+            &mut sink,
+        )
+        .is_ok());
+
+        let bf = std::str::from_utf8(&sink).unwrap();
+        assert_eq!(
+            bf,
+            "1 1 0 1 EQ\n1 1 0 2 EQ\n1 1 1 3 EQ\n2 1 1 3 4 XOR\n2 1 2 3 5 XOR\n2 1 5 4 6 AND\n1 1 6 0 INV\n0 1 0 OUTPUT\n"
         );
     }
 }

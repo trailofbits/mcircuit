@@ -5,7 +5,7 @@ use crate::{Operation, WireValue};
 mod bristol;
 mod json;
 
-pub use bristol::bool_circuit_to_bristol;
+pub use bristol::BristolFashion;
 pub use json::bool_circuit_to_json;
 
 /// The core export trait.
