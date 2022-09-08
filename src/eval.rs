@@ -1,9 +1,10 @@
-use crate::analysis::{AnalysisPass, WireCounter};
-use crate::parsers::WireHasher;
-use crate::{CombineOperation, HasIO, Operation};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Write};
+
+use crate::analysis::{AnalysisPass, WireCounter};
+use crate::parsers::WireHasher;
+use crate::{CombineOperation, HasIO, Operation};
 
 /// Evaluates a composite program (in the clear). Uses assert! to check `AssertZero` gates
 pub fn evaluate_composite_program(

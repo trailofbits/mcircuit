@@ -11,16 +11,15 @@
 #[macro_use]
 extern crate variant_count;
 
-use num_traits::Zero;
-use rand::distributions::{Distribution, Standard};
-use rand::Rng;
-use serde::{Deserialize, Serialize};
-
 pub use eval::{dump_vcd, evaluate_composite_program, largest_wires, smallest_wires, VcdDumper};
 pub use has_const::HasConst;
 pub use has_io::HasIO;
 pub use identity::Identity;
+use num_traits::Zero;
 pub use parsers::Parse;
+use rand::distributions::{Distribution, Standard};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 pub use translatable::Translatable;
 
 mod analysis;
@@ -63,7 +62,7 @@ impl WireValue for u64 {
 }
 
 /// Defines the individual logic gate operations we can support
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, VariantCount)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, VariantCount)]
 pub enum Operation<T: WireValue> {
     /// Read a value from input and emit it on the wire
     Input(usize),
@@ -103,7 +102,7 @@ enum OpType<T: WireValue> {
 }
 
 /// Wraps `Operation` to define a field for each gate. Also supports conversions and metadata.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CombineOperation {
     /// Circuit Operation on GF2 Finite Field
     GF2(Operation<bool>),
