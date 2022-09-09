@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
+use crate::Wire;
 use crate::analysis::{AnalysisPass, WireCounter};
 use crate::parsers::WireHasher;
 use crate::{CombineOperation, HasIO, Operation};
@@ -24,68 +25,68 @@ pub fn evaluate_composite_program(
         match step {
             CombineOperation::GF2(gf2_insn) => match *gf2_insn {
                 Operation::Input(dst) => {
-                    bool_wires[dst] = bool_inputs.next().expect("Ran out of boolean inputs");
+                    bool_wires[dst.0] = bool_inputs.next().expect("Ran out of boolean inputs");
                 }
                 Operation::Random(dst) => {
                     let val: bool = rand::random();
-                    bool_wires[dst] = val;
+                    bool_wires[dst.0] = val;
                 }
                 Operation::Add(dst, src1, src2) => {
-                    bool_wires[dst] = bool_wires[src1] ^ bool_wires[src2];
+                    bool_wires[dst.0] = bool_wires[src1.0] ^ bool_wires[src2.0];
                 }
                 Operation::Sub(dst, src1, src2) => {
-                    bool_wires[dst] = bool_wires[src1] ^ bool_wires[src2];
+                    bool_wires[dst.0] = bool_wires[src1.0] ^ bool_wires[src2.0];
                 }
                 Operation::Mul(dst, src1, src2) => {
-                    bool_wires[dst] = bool_wires[src1] & bool_wires[src2];
+                    bool_wires[dst.0] = bool_wires[src1.0] & bool_wires[src2.0];
                 }
                 Operation::AddConst(dst, src, c) => {
-                    bool_wires[dst] = bool_wires[src] ^ c;
+                    bool_wires[dst.0] = bool_wires[src.0] ^ c;
                 }
                 Operation::SubConst(dst, src, c) => {
-                    bool_wires[dst] = bool_wires[src] ^ c;
+                    bool_wires[dst.0] = bool_wires[src.0] ^ c;
                 }
                 Operation::MulConst(dst, src, c) => {
-                    bool_wires[dst] = bool_wires[src] & c;
+                    bool_wires[dst.0] = bool_wires[src.0] & c;
                 }
                 Operation::AssertZero(src) => {
-                    assert!(!bool_wires[src]);
+                    assert!(!bool_wires[src.0]);
                 }
                 Operation::Const(dst, c) => {
-                    bool_wires[dst] = c;
+                    bool_wires[dst.0] = c;
                 }
             },
             CombineOperation::Z64(z64_insn) => match *z64_insn {
                 Operation::Input(dst) => {
-                    arith_wires[dst] = arith_inputs.next().expect("Ran out of arithmetic inputs");
+                    arith_wires[dst.0] = arith_inputs.next().expect("Ran out of arithmetic inputs");
                 }
                 Operation::Random(dst) => {
                     let val: u64 = rand::random();
-                    arith_wires[dst] = val;
+                    arith_wires[dst.0] = val;
                 }
                 Operation::Add(dst, src1, src2) => {
-                    arith_wires[dst] = arith_wires[src1].wrapping_add(arith_wires[src2]);
+                    arith_wires[dst.0] = arith_wires[src1.0].wrapping_add(arith_wires[src2.0]);
                 }
                 Operation::Sub(dst, src1, src2) => {
-                    arith_wires[dst] = arith_wires[src1].wrapping_sub(arith_wires[src2]);
+                    arith_wires[dst.0] = arith_wires[src1.0].wrapping_sub(arith_wires[src2.0]);
                 }
                 Operation::Mul(dst, src1, src2) => {
-                    arith_wires[dst] = arith_wires[src1].wrapping_mul(arith_wires[src2]);
+                    arith_wires[dst.0] = arith_wires[src1.0].wrapping_mul(arith_wires[src2.0]);
                 }
                 Operation::AddConst(dst, src, c) => {
-                    arith_wires[dst] = arith_wires[src].wrapping_add(c);
+                    arith_wires[dst.0] = arith_wires[src.0].wrapping_add(c);
                 }
                 Operation::SubConst(dst, src, c) => {
-                    arith_wires[dst] = arith_wires[src].wrapping_sub(c);
+                    arith_wires[dst.0] = arith_wires[src.0].wrapping_sub(c);
                 }
                 Operation::MulConst(dst, src, c) => {
-                    arith_wires[dst] = arith_wires[src].wrapping_mul(c);
+                    arith_wires[dst.0] = arith_wires[src.0].wrapping_mul(c);
                 }
                 Operation::AssertZero(src) => {
-                    assert_eq!(arith_wires[src], 0u64);
+                    assert_eq!(arith_wires[src.0], 0u64);
                 }
                 Operation::Const(dst, c) => {
-                    arith_wires[dst] = c;
+                    arith_wires[dst.0] = c;
                 }
             },
             CombineOperation::B2A(dst, low) => {
@@ -364,14 +365,14 @@ impl VcdDumper {
     }
 
     /// Write a formatted boolean value into the VCD file. Can only be one bit.
-    pub fn dump_bool(&mut self, dst: usize, val: bool) {
+    pub fn dump_bool(&mut self, dst: Wire, val: bool) {
         self.writer
             .write_all(format!("{}!{}\n", if val { "1" } else { "0" }, dst).as_ref())
             .unwrap();
     }
 
     /// Write a 64-bit integer into the VCD file.
-    pub fn dump_arith(&mut self, dst: usize, val: u64) {
+    pub fn dump_arith(&mut self, dst: Wire, val: u64) {
         self.writer
             .write_all(format!("b{:b} @{}\n", val, dst).as_ref())
             .unwrap();
@@ -405,96 +406,96 @@ pub fn dump_vcd(
         match step {
             CombineOperation::GF2(gf2_insn) => match *gf2_insn {
                 Operation::Input(dst) => {
-                    bool_wires[dst] = bool_inputs.next().expect("Ran out of boolean inputs");
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = bool_inputs.next().expect("Ran out of boolean inputs");
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::Random(dst) => {
                     let val: bool = rand::random();
-                    bool_wires[dst] = val;
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = val;
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::Add(dst, src1, src2) => {
-                    bool_wires[dst] = bool_wires[src1] ^ bool_wires[src2];
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = bool_wires[src1.0] ^ bool_wires[src2.0];
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::Sub(dst, src1, src2) => {
-                    bool_wires[dst] = bool_wires[src1] ^ bool_wires[src2];
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = bool_wires[src1.0] ^ bool_wires[src2.0];
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::Mul(dst, src1, src2) => {
-                    bool_wires[dst] = bool_wires[src1] & bool_wires[src2];
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = bool_wires[src1.0] & bool_wires[src2.0];
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::AddConst(dst, src, c) => {
-                    bool_wires[dst] = bool_wires[src] ^ c;
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = bool_wires[src.0] ^ c;
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::SubConst(dst, src, c) => {
-                    bool_wires[dst] = bool_wires[src] ^ c;
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = bool_wires[src.0] ^ c;
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::MulConst(dst, src, c) => {
-                    bool_wires[dst] = bool_wires[src] & c;
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = bool_wires[src.0] & c;
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
                 Operation::AssertZero(src) => {
-                    if !bool_wires[src] {
+                    if !bool_wires[src.0] {
                         println!(
                             "Expected false for boolean wire {}, got {}",
-                            src, bool_wires[src]
+                            src, bool_wires[src.0]
                         );
                     }
                 }
                 Operation::Const(dst, c) => {
-                    bool_wires[dst] = c;
-                    dumper.dump_bool(dst, bool_wires[dst]);
+                    bool_wires[dst.0] = c;
+                    dumper.dump_bool(dst, bool_wires[dst.0]);
                 }
             },
             CombineOperation::Z64(z64_insn) => match *z64_insn {
                 Operation::Input(dst) => {
-                    arith_wires[dst] = arith_inputs.next().expect("Ran out of arithmetic inputs");
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = arith_inputs.next().expect("Ran out of arithmetic inputs");
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::Random(dst) => {
                     let val: u64 = rand::random();
-                    arith_wires[dst] = val;
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = val;
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::Add(dst, src1, src2) => {
-                    arith_wires[dst] = arith_wires[src1].wrapping_add(arith_wires[src2]);
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = arith_wires[src1.0].wrapping_add(arith_wires[src2.0]);
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::Sub(dst, src1, src2) => {
-                    arith_wires[dst] = arith_wires[src1].wrapping_sub(arith_wires[src2]);
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = arith_wires[src1.0].wrapping_sub(arith_wires[src2.0]);
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::Mul(dst, src1, src2) => {
-                    arith_wires[dst] = arith_wires[src1].wrapping_mul(arith_wires[src2]);
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = arith_wires[src1.0].wrapping_mul(arith_wires[src2.0]);
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::AddConst(dst, src, c) => {
-                    arith_wires[dst] = arith_wires[src].wrapping_add(c);
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = arith_wires[src.0].wrapping_add(c);
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::SubConst(dst, src, c) => {
-                    arith_wires[dst] = arith_wires[src].wrapping_sub(c);
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = arith_wires[src.0].wrapping_sub(c);
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::MulConst(dst, src, c) => {
-                    arith_wires[dst] = arith_wires[src].wrapping_mul(c);
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = arith_wires[src.0].wrapping_mul(c);
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
                 Operation::AssertZero(src) => {
-                    if arith_wires[src] != 0u64 {
+                    if arith_wires[src.0] != 0u64 {
                         println!(
                             "Expected 0 for arithmetic wire {}, got {}",
-                            src, arith_wires[src]
+                            src, arith_wires[src.0]
                         );
                     }
                 }
                 Operation::Const(dst, c) => {
-                    arith_wires[dst] = c;
-                    dumper.dump_arith(dst, arith_wires[dst]);
+                    arith_wires[dst.0] = c;
+                    dumper.dump_arith(dst, arith_wires[dst.0]);
                 }
             },
             CombineOperation::B2A(dst, low) => {

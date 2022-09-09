@@ -22,7 +22,7 @@ pub trait Parse<T: WireValue> {
 /// Calculates and remembers sequential hashes of wire names.
 #[cfg(not(debug_assertions))]
 pub struct WireHasher {
-    hashes: HashMap<usize, usize>,
+    hashes: HashMap<usize, Wire>,
 }
 
 #[cfg(not(debug_assertions))]
@@ -33,7 +33,7 @@ impl WireHasher {
         }
     }
 
-    pub fn get_wire_id(&mut self, name: &str) -> usize {
+    pub fn get_wire_id(&mut self, name: &str) -> Wire {
         let mut s = DefaultHasher::new();
         name.hash(&mut s);
         let len = self.hashes.len();
@@ -42,7 +42,7 @@ impl WireHasher {
     }
 
     /// Allows you to map back to the string that created this hash. Only works in debug mode.
-    pub fn backref(&self, id: usize) -> Option<&String> {
+    pub fn backref(&self, id: Wire) -> Option<&String> {
         None
     }
 }
@@ -60,7 +60,7 @@ impl WireHasher {
 /// ```
 #[cfg(debug_assertions)]
 pub struct WireHasher {
-    hashes: HashMap<usize, usize>,
+    hashes: HashMap<usize, Wire>,
     reverse: Vec<String>,
 }
 
@@ -73,7 +73,7 @@ impl WireHasher {
         }
     }
 
-    pub fn get_wire_id(&mut self, name: &str) -> usize {
+    pub fn get_wire_id(&mut self, name: &str) -> Wire {
         let mut s = DefaultHasher::new();
         name.hash(&mut s);
         let len = self.hashes.len();
@@ -91,7 +91,7 @@ impl WireHasher {
     }
 
     /// Allows you to map back to the string that created this hash. Only works in debug mode.
-    pub fn backref(&self, id: usize) -> Option<&String> {
+    pub fn backref(&self, id: Wire) -> Option<&String> {
         self.reverse.get(id)
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::Wire;
 use crate::io_extractors::{InputIterator, OutputIterator};
 use crate::{CombineOperation, HasIO, OpType, Operation, WireValue};
 
@@ -11,19 +12,19 @@ pub trait Translatable {
     fn translate<I1, I2>(&self, win: I1, wout: I2) -> Option<Self>
     where
         Self: Sized,
-        I1: Iterator<Item = usize>,
-        I2: Iterator<Item = usize>;
+        I1: Iterator<Item = Wire>,
+        I2: Iterator<Item = Wire>;
 
     /// Takes a hashmap, and looks for existing wires in the keys. Replaces any existing wire keys
     /// with the value from the hashmap.
     fn translate_from_hashmap<'a>(
         &'a self,
-        translation_table: HashMap<usize, usize>,
+        translation_table: HashMap<usize, Wire>,
     ) -> Option<Self>
     where
         Self: Sized + HasIO,
-        InputIterator<'a, Self>: Iterator<Item = usize>,
-        OutputIterator<'a, Self>: Iterator<Item = usize>,
+        InputIterator<'a, Self>: Iterator<Item = Wire>,
+        OutputIterator<'a, Self>: Iterator<Item = Wire>,
     {
         self.translate(
             self.inputs()
@@ -36,13 +37,13 @@ pub trait Translatable {
     /// Calls a function on the I/O wires and replaces them with the output of the function.
     fn translate_from_fn<'a>(
         &'a self,
-        input_mapper: fn(usize) -> usize,
-        output_mapper: fn(usize) -> usize,
+        input_mapper: fn(Wire) -> usize,
+        output_mapper: fn(Wire) -> usize,
     ) -> Option<Self>
     where
         Self: Sized + HasIO,
-        InputIterator<'a, Self>: Iterator<Item = usize>,
-        OutputIterator<'a, Self>: Iterator<Item = usize>,
+        InputIterator<'a, Self>: Iterator<Item = Wire>,
+        OutputIterator<'a, Self>: Iterator<Item = Wire>,
     {
         self.translate(
             self.inputs().map(input_mapper),
@@ -55,8 +56,8 @@ impl<T: WireValue> Translatable for Operation<T> {
     fn translate<'a, I1, I2>(&self, win: I1, wout: I2) -> Option<Self>
     where
         Self: Sized,
-        I1: Iterator<Item = usize>,
-        I2: Iterator<Item = usize>,
+        I1: Iterator<Item = Wire>,
+        I2: Iterator<Item = Wire>,
     {
         match self {
             Operation::Input(_) => Some(Operation::<T>::construct(
@@ -127,8 +128,8 @@ impl Translatable for CombineOperation {
     fn translate<'a, I1, I2>(&self, mut win: I1, mut wout: I2) -> Option<Self>
     where
         Self: Sized,
-        I1: Iterator<Item = usize>,
-        I2: Iterator<Item = usize>,
+        I1: Iterator<Item = Wire>,
+        I2: Iterator<Item = Wire>,
     {
         match self {
             CombineOperation::GF2(op) => Some(CombineOperation::GF2(

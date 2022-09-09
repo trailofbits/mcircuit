@@ -11,6 +11,8 @@
 #[macro_use]
 extern crate variant_count;
 
+use std::fmt;
+
 pub use eval::{dump_vcd, evaluate_composite_program, largest_wires, smallest_wires, VcdDumper};
 pub use has_const::HasConst;
 pub use has_io::HasIO;
@@ -61,44 +63,55 @@ impl WireValue for u64 {
     }
 }
 
+/// Represents an individual wire in a circuit.
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+#[repr(transparent)]
+struct Wire(usize);
+
+impl fmt::Display for Wire {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Defines the individual logic gate operations we can support
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, VariantCount)]
 pub enum Operation<T: WireValue> {
     /// Read a value from input and emit it on the wire
-    Input(usize),
+    Input(Wire),
     /// Emit a random value on the wire
-    Random(usize),
+    Random(Wire),
     /// Add the two wires together
-    Add(usize, usize, usize),
+    Add(Wire, Wire, Wire),
     /// Add the wire and the constant
-    AddConst(usize, usize, T),
+    AddConst(Wire, Wire, T),
     /// Subtract the final wire from the second wire
-    Sub(usize, usize, usize),
+    Sub(Wire, Wire, Wire),
     /// Subtract the constant value from the wire
-    SubConst(usize, usize, T),
+    SubConst(Wire, Wire, T),
     /// Multiply the two wires together
-    Mul(usize, usize, usize),
+    Mul(Wire, Wire, Wire),
     /// Multiply the first wire by the constant value
-    MulConst(usize, usize, T),
+    MulConst(Wire, Wire, T),
     /// Assert that the wire has the const value zero
-    AssertZero(usize),
+    AssertZero(Wire),
     /// Emit the const value on the wire
-    Const(usize, T),
+    Const(Wire, T),
 }
 
 /// Defines the possible semantics of the different operands; used to generate random circuits
 #[derive(Clone, Copy)]
 enum OpType<T: WireValue> {
     /// (dst)
-    Input(fn(usize) -> Operation<T>),
+    Input(fn(Wire) -> Operation<T>),
     /// (dst, constant)
-    InputConst(fn(usize, T) -> Operation<T>),
+    InputConst(fn(Wire, T) -> Operation<T>),
     /// (src, constant)
-    Output(fn(usize) -> Operation<T>),
+    Output(fn(Wire) -> Operation<T>),
     /// (dst, src1, src2)
-    Binary(fn(usize, usize, usize) -> Operation<T>),
+    Binary(fn(Wire, Wire, Wire) -> Operation<T>),
     /// (dst, src, constant)
-    BinaryConst(fn(usize, usize, T) -> Operation<T>),
+    BinaryConst(fn(Wire, Wire, T) -> Operation<T>),
 }
 
 /// Wraps `Operation` to define a field for each gate. Also supports conversions and metadata.
@@ -113,11 +126,11 @@ pub enum CombineOperation {
     /// Takes: (dst, src) where src is the _low bit_ of the 64-bit GF2 slice.
     /// This means that the least significant bit of the Z64 value will come from the
     /// GF2 wire with the lowest index. Make sure your circuits are designed accordingly.
-    B2A(usize, usize),
+    B2A(Wire, Wire),
 
     /// Information about the number of wires needed to evaluate the circuit. As with B2A,
     /// first item is Z64, second is GF2.
-    SizeHint(usize, usize),
+    SizeHint(Wire, Wire),
 }
 
 impl<T: WireValue> Operation<T> {
@@ -148,8 +161,8 @@ impl<T: WireValue> Operation<T> {
         constant: Option<T>,
     ) -> Operation<T>
     where
-        I1: Iterator<Item = usize>,
-        I2: Iterator<Item = usize>,
+        I1: Iterator<Item = Wire>,
+        I2: Iterator<Item = Wire>,
     {
         match ty {
             OpType::Input(op) => op(outputs.next().expect("Input op requires an output wire")),
@@ -192,10 +205,10 @@ impl From<Operation<u64>> for CombineOperation {
 
 impl<T: WireValue> Distribution<Operation<T>> for Standard
 where
-    Standard: Distribution<(usize, usize, usize, T)>,
+    Standard: Distribution<(Wire, Wire, Wire, T)>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Operation<T> {
-        let (out, i0, i1, c): (usize, usize, usize, T) = rand::random();
+        let (out, i0, i1, c): (Wire, Wire, Wire, T) = rand::random();
         Operation::<T>::construct(
             Operation::<T>::random_variant(rng),
             [i0, i1].iter().copied(),

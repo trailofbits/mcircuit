@@ -86,8 +86,8 @@ pub fn format_wire_id(context: &str, id: &str) -> String {
 #[derive(Clone)]
 pub struct BlifCircuitDesc<T: WireValue> {
     pub name: String,
-    pub inputs: Vec<usize>,
-    pub outputs: Vec<usize>,
+    pub inputs: Vec<Wire>,
+    pub outputs: Vec<Wire>,
     pub gates: Vec<Operation<T>>,
     pub subcircuits: Vec<BlifSubcircuitDesc>,
 }
@@ -97,7 +97,7 @@ pub struct BlifCircuitDesc<T: WireValue> {
 pub struct BlifSubcircuitDesc {
     pub name: String,
     /// A set of wire ID connections in the format `(parent, subcircuit)`
-    pub connections: Vec<(usize, usize)>,
+    pub connections: Vec<(Wire, Wire)>,
 }
 
 impl Default for BlifSubcircuitDesc {
@@ -195,8 +195,8 @@ impl CanConstructVariant<bool> for BlifParser<bool> {
     fn construct_variant(
         &mut self,
         op: &str,
-        out: usize,
-        inputs: &[usize],
+        out: Wire,
+        inputs: &[Wire],
         cons: Option<bool>,
     ) -> Operation<bool> {
         match op {
@@ -256,8 +256,8 @@ impl CanConstructVariant<u64> for BlifParser<u64> {
     fn construct_variant(
         &mut self,
         op: &str,
-        out: usize,
-        inputs: &[usize],
+        out: Wire,
+        inputs: &[Wire],
         cons: Option<u64>,
     ) -> Operation<u64> {
         match op {

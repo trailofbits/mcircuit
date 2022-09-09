@@ -9,7 +9,7 @@ pub trait Identity<T> {
     fn is_identity(&self) -> bool;
 
     /// Used to produce an identity gate on the current field when needed.
-    fn identity(w_out: usize, w_in: usize) -> Self;
+    fn identity(w_out: Wire, w_in: Wire) -> Self;
 }
 
 // /// Rustc won't let us use any generics here because `bool` might implement Zero and One in
@@ -36,7 +36,7 @@ impl Identity<u64> for Operation<u64> {
         }
     }
 
-    fn identity(w_out: usize, w_in: usize) -> Self {
+    fn identity(w_out: Wire, w_in: Wire) -> Self {
         Self::AddConst(w_out, w_in, 0u64)
     }
 }
@@ -51,7 +51,7 @@ impl Identity<bool> for Operation<bool> {
         }
     }
 
-    fn identity(w_out: usize, w_in: usize) -> Self {
+    fn identity(w_out: Wire, w_in: Wire) -> Self {
         Self::AddConst(w_out, w_in, false)
     }
 }
@@ -64,7 +64,7 @@ impl Identity<u64> for CombineOperation {
         }
     }
 
-    fn identity(w_out: usize, w_in: usize) -> Self {
+    fn identity(w_out: Wire, w_in: Wire) -> Self {
         Self::Z64(Operation::identity(w_out, w_in))
     }
 }
@@ -77,7 +77,7 @@ impl Identity<bool> for CombineOperation {
         }
     }
 
-    fn identity(w_out: usize, w_in: usize) -> Self {
+    fn identity(w_out: Wire, w_in: Wire) -> Self {
         Self::GF2(Operation::identity(w_out, w_in))
     }
 }

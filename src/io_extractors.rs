@@ -26,7 +26,7 @@ impl<'a, T> OutputIterator<'a, T> {
 }
 
 impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
-    type Item = usize;
+    type Item = Wire;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = match *self.op {
@@ -95,7 +95,7 @@ impl<'a, T: WireValue> Iterator for InputIterator<'a, Operation<T>> {
 }
 
 impl<'a, T: WireValue> Iterator for OutputIterator<'a, Operation<T>> {
-    type Item = usize;
+    type Item = Wire;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = match *self.op {
@@ -165,12 +165,12 @@ impl<'a, T: WireValue> Iterator for OutputIterator<'a, Operation<T>> {
             }
         };
         self.index += 1;
-        res
+        Wire(res)
     }
 }
 
 impl<'a> Iterator for InputIterator<'a, CombineOperation> {
-    type Item = usize;
+    type Item = Wire;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = match self.op {
@@ -191,7 +191,7 @@ impl<'a> Iterator for InputIterator<'a, CombineOperation> {
 }
 
 impl<'a> Iterator for OutputIterator<'a, CombineOperation> {
-    type Item = usize;
+    type Item = Wire;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = match self.op {
