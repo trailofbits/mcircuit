@@ -1,6 +1,8 @@
+use std::collections::HashSet;
 use std::io::{Error, ErrorKind, Result, Write};
 
 use crate::exporters::Export;
+use crate::io_extractors::{InputIterator, OutputIterator};
 use crate::Operation;
 
 pub struct BristolFashion;
@@ -80,6 +82,15 @@ impl Export<bool> for BristolFashion {
         //     2 1 1
         //     1 1
 
+        let mut wires = HashSet::new();
+        for gate in gates {
+            // Add all input and output wires in the operation to the set of seen wires.
+            wires.extend(InputIterator::new(gate));
+            wires.extend(OutputIterator::new(gate));
+        }
+
+        writeln!(sink, "{} {}", gates.len(), wires.len())?;
+
         let mut wit_iter = witness.iter();
 
         for gate in gates {
@@ -130,7 +141,7 @@ mod tests {
         let bf = std::str::from_utf8(&sink).unwrap();
         assert_eq!(
             bf,
-            "1 1 0 1 EQ\n1 1 0 2 EQ\n1 1 1 3 EQ\n2 1 1 3 4 XOR\n2 1 2 3 5 XOR\n2 1 5 4 6 AND\n1 1 6 0 INV\n0 1 0 OUTPUT\n"
+            "8 7\n1 1 0 1 EQ\n1 1 0 2 EQ\n1 1 1 3 EQ\n2 1 1 3 4 XOR\n2 1 2 3 5 XOR\n2 1 5 4 6 AND\n1 1 6 0 INV\n0 1 0 OUTPUT\n"
         );
     }
 }

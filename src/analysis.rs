@@ -8,13 +8,18 @@ pub trait AnalysisPass {
 
     fn analyze_gate(&mut self, gate: &CombineOperation);
 
-    fn finish_analysis(&self) -> Self::Output;
+    fn finish_analysis(self) -> Self::Output;
 
-    fn analyze(&mut self, circuit: &[CombineOperation]) -> Self::Output {
+    fn analyze<'a>(circuit: impl Iterator<Item = &'a CombineOperation>) -> Self::Output
+    where
+        Self: Default,
+    {
+        let mut result = Self::default();
+
         for gate in circuit {
-            self.analyze_gate(gate);
+            result.analyze_gate(&gate);
         }
-        self.finish_analysis()
+        result.finish_analysis()
     }
 }
 
@@ -67,10 +72,11 @@ impl AnalysisPass for WireCounter {
         }
     }
 
-    fn finish_analysis(&self) -> Self::Output {
+    fn finish_analysis(self) -> Self::Output {
         (
             (self.largest_arith + 1, self.largest_bool + 1),
             (self.smallest_arith, self.smallest_bool),
         )
     }
 }
+
