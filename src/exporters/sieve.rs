@@ -27,7 +27,7 @@ impl Export<bool> for IR1 {
                 // NOTE(ww): This could be optimized the way we do for
                 // Bristol Fashion: inv when nonzero and just an identity
                 // assign when zero.
-                writeln!(sink, "${} <- @xor(${}, < {} >);", o, i, c)
+                writeln!(sink, "${} <- @xor(${}, < {} >);", o, i, *c as u32)
             }
             Operation::Sub(o, l, r) => {
                 writeln!(sink, "${} <- @xor(${}, ${});", o, l, r)
@@ -36,7 +36,7 @@ impl Export<bool> for IR1 {
                 // NOTE(ww): This could be optimized the way we do for
                 // Bristol Fashion: inv when nonzero and just an identity
                 // assign when zero.
-                writeln!(sink, "${} <- @xor(${}, < {} >);", o, i, c)
+                writeln!(sink, "${} <- @xor(${}, < {} >);", o, i, *c as u32)
             }
             Operation::Mul(o, l, r) => {
                 writeln!(sink, "${} <- @and(${}, ${});", o, l, r)
@@ -45,13 +45,13 @@ impl Export<bool> for IR1 {
                 // NOTE(ww): This could be optimized the way we do for
                 // Bristol Fashion: inv when zero and just an identity
                 // assign when nonzero.
-                writeln!(sink, "${} <- @and(${}, < {} >);", o, i, c)
+                writeln!(sink, "${} <- @and(${}, < {} >);", o, i, *c as u32)
             }
             Operation::AssertZero(w) => {
                 writeln!(sink, "@assert_zero(${});", w)
             }
             Operation::Const(w, c) => {
-                writeln!(sink, "${} <- < {} >;", w, c)
+                writeln!(sink, "${} <- < {} >;", w, *c as u32)
             }
         }
     }
@@ -84,5 +84,57 @@ impl Export<bool> for IR1 {
         writeln!(sink, "@end")?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::exporters::sieve::IR1;
+    use crate::exporters::Export;
+    use crate::Operation;
+
+    #[test]
+    fn print_example() {
+        let mut sink = Vec::new();
+
+        assert!(IR1::export_circuit(
+            &[
+                Operation::Input(1),
+                Operation::Input(2),
+                Operation::Input(3),
+                Operation::Add(4, 1, 3),
+                Operation::Add(5, 2, 3),
+                Operation::Mul(6, 5, 4),
+                Operation::AddConst(0, 6, true),
+                Operation::AssertZero(0)
+            ],
+            &[false, false, true],
+            &mut sink,
+        )
+        .is_ok());
+
+        let bf = std::str::from_utf8(&sink).unwrap();
+        assert_eq!(
+            bf,
+            "version 1.0.0;
+field characteristic 2 degree 1;
+short_witness @begin
+\t< 0 >;
+\t< 0 >;
+\t< 1 >;
+@end
+gate_set: boolean;
+@begin
+$1 <- @short_witness;
+$2 <- @short_witness;
+$3 <- @short_witness;
+$4 <- @xor($1, $3);
+$5 <- @xor($2, $3);
+$6 <- @and($5, $4);
+$0 <- @xor($6, < 1 >);
+@assert_zero($0);
+@end
+"
+        );
     }
 }
