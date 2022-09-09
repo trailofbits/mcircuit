@@ -61,6 +61,25 @@ impl Export<bool> for BristolFashion {
         witness: &[bool],
         sink: &mut impl Write,
     ) -> Result<()> {
+        // Every Bristol Fashion circuit begins with a "header", which predeclares
+        // a few different input an output cardinalities. It looks like this:
+        //
+        //     {ngates} {nwires}
+        //     {niv} {ni_1,...,ni_niv}
+        //     {nov} {no_1,...,no_nov}
+        //
+        // Where {ngates} is the total number of gates, {nwires} is the total
+        // number of wires, {niv} and {nov} are the number of input and output
+        // values, respectively, and the lists that follow them describe the
+        // number of wires per output value.
+        //
+        // For example, a circuit with 6 gates, 12 wires, 2 input values of
+        // 1 wire each, and 1 output value of 1 wire would look like this:
+        //
+        //     6 12
+        //     2 1 1
+        //     1 1
+
         let mut wit_iter = witness.iter();
 
         for gate in gates {
