@@ -17,7 +17,7 @@ pub trait AnalysisPass {
         let mut result = Self::default();
 
         for gate in circuit {
-            result.analyze_gate(&gate);
+            result.analyze_gate(gate);
         }
         result.finish_analysis()
     }
