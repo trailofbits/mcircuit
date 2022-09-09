@@ -10,8 +10,8 @@ pub struct IR1;
 impl Export<bool> for IR1 {
     fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
         match gate {
-            Operation::Input(_) => {
-                Err(Error::new(ErrorKind::Other, "can't use input gates in IR1"))
+            Operation::Input(i) => {
+                writeln!(sink, "${} <- @short_witness;", i)
             }
             Operation::Random(_) => {
                 // TODO(ww): Is this true?
@@ -53,7 +53,6 @@ impl Export<bool> for IR1 {
             Operation::Const(w, c) => {
                 writeln!(sink, "${} <- < {} >;", w, c)
             }
-            _ => unimplemented!(),
         }
     }
 
@@ -62,6 +61,28 @@ impl Export<bool> for IR1 {
         witness: &[bool],
         sink: &mut impl Write,
     ) -> Result<()> {
-        unimplemented!();
+        // Header fields.
+        writeln!(sink, "version 1.0.0;")?;
+        writeln!(sink, "field characteristic 2 degree 1;")?;
+
+        // Witness body.
+        writeln!(sink, "short_witness @begin")?;
+        for wit_value in witness.iter() {
+            writeln!(sink, "\t< {} >;", *wit_value as u32)?;
+        }
+        writeln!(sink, "@end")?;
+
+        // We're emitting a boolean circuit, and we don't currently use any special
+        // features (like @for, @switch, or @function).
+        writeln!(sink, "gate_set: boolean;")?;
+
+        // Circuit body.
+        writeln!(sink, "@begin")?;
+        for gate in gates.iter() {
+            Self::export_gate(gate, sink)?;
+        }
+        writeln!(sink, "@end")?;
+
+        Ok(())
     }
 }
