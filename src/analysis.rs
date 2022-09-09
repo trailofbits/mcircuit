@@ -79,4 +79,3 @@ impl AnalysisPass for WireCounter {
         )
     }
 }
-
