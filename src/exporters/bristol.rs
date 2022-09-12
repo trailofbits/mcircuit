@@ -1,6 +1,8 @@
+use std::collections::HashSet;
 use std::io::{Error, ErrorKind, Result, Write};
 
 use crate::exporters::Export;
+use crate::io_extractors::{InputIterator, OutputIterator};
 use crate::Operation;
 
 pub struct BristolFashion;
@@ -61,6 +63,64 @@ impl Export<bool> for BristolFashion {
         witness: &[bool],
         sink: &mut impl Write,
     ) -> Result<()> {
+        // Every Bristol Fashion circuit begins with a "header", which predeclares
+        // a few different input an output cardinalities. It looks like this:
+        //
+        //     {ngates} {nwires}
+        //     {niv} {ni_1,...,ni_niv}
+        //     {nov} {no_1,...,no_nov}
+        //
+        // Where {ngates} is the total number of gates, {nwires} is the total
+        // number of wires, {niv} and {nov} are the number of input and output
+        // values, respectively, and the lists that follow them describe the
+        // number of wires per output value.
+        //
+        // For example, a circuit with 6 gates, 12 wires, 2 input values of
+        // 1 wire each, and 1 output value of 1 wire would look like this:
+        //
+        //     6 12
+        //     2 1 1
+        //     1 1
+
+        let mut wires = HashSet::new();
+        let mut output_count = 0;
+        for gate in gates {
+            // Add all input and output wires in the operation to the set of seen wires.
+            wires.extend(InputIterator::new(gate));
+            wires.extend(OutputIterator::new(gate));
+
+            if matches!(gate, Operation::AssertZero(_)) {
+                output_count += 1;
+            }
+        }
+
+        // {ngates} {nwires}
+        writeln!(sink, "{} {}", gates.len(), wires.len())?;
+
+        // {niv} {ni_1,...,ni_niv}
+        // Each input is 1 bit.
+        writeln!(
+            sink,
+            "{} {}",
+            witness.len(),
+            std::iter::repeat("1")
+                .take(witness.len())
+                .collect::<Vec<_>>()
+                .join(" ")
+        )?;
+
+        // {nov} {no_1,...,no_nov}
+        // Each output is 1 bit...I think.
+        writeln!(
+            sink,
+            "{} {}",
+            output_count,
+            std::iter::repeat("1")
+                .take(output_count)
+                .collect::<Vec<_>>()
+                .join(" ")
+        )?;
+
         let mut wit_iter = witness.iter();
 
         for gate in gates {
@@ -111,7 +171,7 @@ mod tests {
         let bf = std::str::from_utf8(&sink).unwrap();
         assert_eq!(
             bf,
-            "1 1 0 1 EQ\n1 1 0 2 EQ\n1 1 1 3 EQ\n2 1 1 3 4 XOR\n2 1 2 3 5 XOR\n2 1 5 4 6 AND\n1 1 6 0 INV\n0 1 0 OUTPUT\n"
+            "8 7\n3 1 1 1\n1 1\n1 1 0 1 EQ\n1 1 0 2 EQ\n1 1 1 3 EQ\n2 1 1 3 4 XOR\n2 1 2 3 5 XOR\n2 1 5 4 6 AND\n1 1 6 0 INV\n0 1 0 OUTPUT\n"
         );
     }
 }

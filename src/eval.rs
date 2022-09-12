@@ -526,12 +526,12 @@ pub fn largest_wires(program: &[CombineOperation]) -> (usize, usize) {
     if let CombineOperation::SizeHint(z64_cells, gf2_cells) = program[0] {
         (z64_cells, gf2_cells)
     } else {
-        WireCounter::default().analyze(program).0
+        WireCounter::analyze(program.iter()).0
     }
 }
 
 /// Get the largest (arithmetic, boolean) wires in a program so we know how much memory to allocate.
 /// Does _NOT_ respect size hints.
 pub fn smallest_wires(program: &[CombineOperation]) -> (usize, usize) {
-    WireCounter::default().analyze(program).1
+    WireCounter::analyze(program.iter()).1
 }
