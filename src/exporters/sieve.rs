@@ -77,6 +77,8 @@ impl Export<bool> for IR1 {
         writeln!(sink, "gate_set: boolean;")?;
 
         // Circuit body.
+        // We're allowed to emit functions in here, before any literal
+        // gate directives. But we currently don't need that.
         writeln!(sink, "@begin")?;
         for gate in gates.iter() {
             Self::export_gate(gate, sink)?;
