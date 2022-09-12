@@ -4,9 +4,11 @@ use crate::{Operation, WireValue};
 
 mod bristol;
 mod json;
+mod sieve;
 
 pub use bristol::BristolFashion;
 pub use json::bool_circuit_to_json;
+pub use sieve::IR1;
 
 /// The core export trait.
 ///
