@@ -5,9 +5,11 @@ use std::io::{Error, ErrorKind, Result, Write};
 use crate::exporters::Export;
 use crate::Operation;
 
+pub struct IR0;
 pub struct IR1;
 
 impl Export<bool> for IR1 {
+    //{{{
     fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
         match gate {
             Operation::Input(i) => {
@@ -75,6 +77,82 @@ impl Export<bool> for IR1 {
         // We're emitting a boolean circuit, and we don't currently use any special
         // features (like @for, @switch, or @function).
         writeln!(sink, "gate_set: boolean;")?;
+
+        // Circuit body.
+        // We're allowed to emit functions in here, before any literal
+        // gate directives. But we currently don't need that.
+        writeln!(sink, "@begin")?;
+        for gate in gates.iter() {
+            Self::export_gate(gate, sink)?;
+        }
+        writeln!(sink, "@end")?;
+
+        Ok(())
+    }
+} //}}}
+
+impl Export<bool> for IR0 {
+    fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
+        match gate {
+            Operation::Input(i) => {
+                writeln!(sink, "${} <- @short_witness;", i)
+            }
+            Operation::Random(_) => Err(Error::new(
+                ErrorKind::Other,
+                "can't use random gates in IR0",
+            )),
+            Operation::Add(o, l, r) => {
+                writeln!(sink, "${} <- @xor(${}, ${});", o, l, r)
+            }
+            Operation::AddConst(o, i, c) => {
+                if *c {
+                    writeln!(sink, "${} <- @not(${});", o, i)
+                } else {
+                    writeln!(sink, "${} <- ${};", o, i)
+                }
+            }
+            Operation::Sub(o, l, r) => {
+                writeln!(sink, "${} <- @xor(${}, ${});", o, l, r)
+            }
+            Operation::SubConst(o, i, c) => {
+                // NOTE(ww): This could be optimized the way we do for
+                // Bristol Fashion: inv when nonzero and just an identity
+                // assign when zero.
+                writeln!(sink, "${} <- @xor(${}, < {} >);", o, i, *c as u32)
+            }
+            Operation::Mul(o, l, r) => {
+                writeln!(sink, "${} <- @and(${}, ${});", o, l, r)
+            }
+            Operation::MulConst(o, i, c) => {
+                // NOTE(ww): This could be optimized the way we do for
+                // Bristol Fashion: inv when zero and just an identity
+                // assign when nonzero.
+                writeln!(sink, "${} <- @and(${}, < {} >);", o, i, *c as u32)
+            }
+            Operation::AssertZero(w) => {
+                writeln!(sink, "@assert_zero(${});", w)
+            }
+            Operation::Const(w, c) => {
+                writeln!(sink, "${} <- < {} >;", w, *c as u32)
+            }
+        }
+    }
+
+    fn export_circuit(
+        gates: &[Operation<bool>],
+        witness: &[bool],
+        sink: &mut impl Write,
+    ) -> Result<()> {
+        // Header fields.
+        writeln!(sink, "version 1.0.0;")?;
+        writeln!(sink, "field characteristic 2 degree 1;")?;
+
+        // features (like @for, @switch, or @function).
+        writeln!(sink, "relation")?;
+        writeln!(sink, "gate_set: boolean;")?;
+        writeln!(sink, "features: simple;")?;
+
+        // Opposed to IR1, the witness body written to seperate file.
 
         // Circuit body.
         // We're allowed to emit functions in here, before any literal
