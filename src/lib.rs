@@ -47,7 +47,7 @@ impl WireValue for bool {
     }
 
     fn to_le_bytes(&self) -> [u8; 8] {
-        [if *self { 1u8 } else { 0u8 }, 0, 0, 0, 0, 0, 0, 0]
+        [u8::from(*self), 0, 0, 0, 0, 0, 0, 0]
     }
 }
 

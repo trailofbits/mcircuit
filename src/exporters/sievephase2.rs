@@ -77,14 +77,11 @@ impl IR0 {
 
         // Private input body.
         writeln!(sink, "@begin")?;
-        match witness {
-            Some(w) => {
-                for wit_value in w.iter() {
-                    writeln!(sink, "< {} > ;", *wit_value as u32)?;
-                }
+        if let Some(w) = witness {
+            for wit_value in w.iter() {
+                writeln!(sink, "< {} > ;", *wit_value as u32)?;
             }
-            None => (),
-        };
+        }
 
         writeln!(sink, "@end")?;
         Ok(())

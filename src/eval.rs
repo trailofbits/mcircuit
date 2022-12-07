@@ -350,7 +350,7 @@ impl VcdDumper {
                     // Otherwise, define a new sub-scope and dump that
                     ScopeEntry::SubScope(sub) => {
                         VcdDumper::write_scope(sub, scope_type, writer, scopes)
-                            .expect(&*format!("No scope called {}", sub));
+                            .unwrap_or_else(|_| panic!("No scope called {}", sub));
                     }
                 }
             }

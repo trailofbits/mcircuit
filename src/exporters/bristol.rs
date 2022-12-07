@@ -53,7 +53,7 @@ impl Export<bool> for BristolFashion {
                 writeln!(sink, "0 1 {} OUTPUT", w)
             }
             Operation::Const(w, c) => {
-                writeln!(sink, "1 1 {} {} EQ", if *c { 1 } else { 0 }, w)
+                writeln!(sink, "1 1 {} {} EQ", i32::from(*c), w)
             }
         }
     }
