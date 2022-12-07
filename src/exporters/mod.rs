@@ -5,10 +5,12 @@ use crate::{Operation, WireValue};
 mod bristol;
 mod json;
 mod sieve;
+mod sievephase2;
 
 pub use bristol::BristolFashion;
 pub use json::bool_circuit_to_json;
 pub use sieve::IR1;
+pub use sievephase2::IR0;
 
 /// The core export trait.
 ///
