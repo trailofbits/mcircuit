@@ -11,10 +11,10 @@ impl Export<bool> for IR0 {
     fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
         match gate {
             Operation::Input(i) => {
+                //NOTE(lisaoverall): needs to be updated for field switching
                 writeln!(sink, "${} <- @private();", i)
             }
             Operation::Random(_) => {
-                // TODO(ww): Is this true?
                 Err(Error::new(
                     ErrorKind::Other,
                     "can't use random gates in IR1",
@@ -27,7 +27,7 @@ impl Export<bool> for IR0 {
                 // NOTE(ww): This could be optimized the way we do for
                 // Bristol Fashion: inv when nonzero and just an identity
                 // assign when zero.
-                writeln!(sink, "${} <- @add(${}, < {} >);", o, i, *c as u32)
+                writeln!(sink, "${} <- @addc(${}, < {} >);", o, i, *c as u32)
             }
             Operation::Sub(o, l, r) => {
                 writeln!(sink, "${} <- @add(${}, ${});", o, l, r)
@@ -36,7 +36,7 @@ impl Export<bool> for IR0 {
                 // NOTE(ww): This could be optimized the way we do for
                 // Bristol Fashion: inv when nonzero and just an identity
                 // assign when zero.
-                writeln!(sink, "${} <- @add(${}, < {} >);", o, i, *c as u32)
+                writeln!(sink, "${} <- @addc(${}, < {} >);", o, i, *c as u32)
             }
             Operation::Mul(o, l, r) => {
                 writeln!(sink, "${} <- @mul(${}, ${});", o, l, r)
@@ -45,7 +45,7 @@ impl Export<bool> for IR0 {
                 // NOTE(ww): This could be optimized the way we do for
                 // Bristol Fashion: inv when zero and just an identity
                 // assign when nonzero.
-                writeln!(sink, "${} <- @mul(${}, < {} >);", o, i, *c as u32)
+                writeln!(sink, "${} <- @mulc(${}, < {} >);", o, i, *c as u32)
             }
             Operation::AssertZero(w) => {
                 writeln!(sink, "@assert_zero(${});", w)
@@ -156,7 +156,7 @@ $3 <- @private();
 $4 <- @add($1, $3);
 $5 <- @add($2, $3);
 $6 <- @mul($5, $4);
-$0 <- @add($6, < 1 >);
+$0 <- @addc($6, < 1 >);
 @assert_zero($0);
 @end
 "
