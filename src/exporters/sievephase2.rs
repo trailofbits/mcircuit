@@ -82,7 +82,7 @@ impl Export<bool> for IR0 {
 impl IR0 {
 
     fn export_input(
-        witness: &[bool], 
+        witness: Option<&[bool]>, 
         input_type: &str,
         sink: &mut impl Write
     ) -> Result<()> {
@@ -93,9 +93,15 @@ impl IR0 {
         
         // Private input body.
         writeln!(sink, "@begin")?;
-        for wit_value in witness.iter() {
-            writeln!(sink, "< {} > ;", *wit_value as u32)?;
-        }
+        match witness {
+            Some(w) => {
+                for wit_value in w.iter() {
+                    writeln!(sink, "< {} > ;", *wit_value as u32)?;
+                }
+            },
+            None => (),
+        };
+        
         writeln!(sink, "@end")?;
         Ok(())    
     }
@@ -104,10 +110,10 @@ impl IR0 {
         witness: &[bool], 
         sink: &mut impl Write
     ) -> Result<()> {
-        IR0::export_input(witness, "private_input", sink)
+        IR0::export_input(Some(witness), "private_input", sink)
     }
 
-    pub fn export_public_input(instance: &[bool], 
+    pub fn export_public_input(instance: Option<&[bool]>, 
         sink: &mut impl Write
     ) -> Result<()> {
         IR0::export_input(instance, "public_input", sink)
