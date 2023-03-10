@@ -1,7 +1,7 @@
 //! Export functionality for JSON.
 
 use serde_json::json;
-use std::io::{Error, ErrorKind, Result, Write};
+use std::io::{Result, Write};
 
 use crate::exporters::Export;
 use crate::Operation;
