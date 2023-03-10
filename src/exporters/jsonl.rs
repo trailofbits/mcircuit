@@ -12,10 +12,10 @@ impl Export<bool> for JSONL {
     fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
         match gate {
             Operation::Input(i) => {
-                writeln!(sink, "{}", json!({ i.to_string(): "Input" }))
+                writeln!(sink, "{}", json!({ i.to_string(): "Input", "args": [] }))
             }
             Operation::Random(r) => {
-                writeln!(sink, "{}", json!({ r.to_string(): "Random" }))
+                writeln!(sink, "{}", json!({ r.to_string(): "Random", "args": [] }))
             }
             Operation::Add(o, l, r) => {
                 writeln!(
@@ -42,24 +42,24 @@ impl Export<bool> for JSONL {
                 writeln!(
                     sink,
                     "{}",
-                    json!({ o.to_string(): "SubConst", "args": [ i , c ]})
+                    json!({ o.to_string(): "SubConst", "args": [ i , c ] })
                 )
             }
             Operation::Mul(o, l, r) => {
-                writeln!(sink, "{}", json!({ o.to_string(): "Mul", "args": [ l, r ]}))
+                writeln!(sink, "{}", json!({ o.to_string(): "Mul", "args": [ l, r ] }))
             }
             Operation::MulConst(o, i, c) => {
                 writeln!(
                     sink,
                     "{}",
-                    json!({ o.to_string(): "MulConst", "args": [ i, c ]})
+                    json!({ o.to_string(): "MulConst", "args": [ i, c ] })
                 )
             }
             Operation::AssertZero(w) => {
-                writeln!(sink, "{}", json!({ w.to_string(): "AssertZero"}))
+                writeln!(sink, "{}", json!({ w.to_string(): "AssertZero", "args": [] }))
             }
             Operation::Const(w, c) => {
-                writeln!(sink, "{}", json!({ w.to_string(): "Const", "args": [ c ]}))
+                writeln!(sink, "{}", json!({ w.to_string(): "Const", "args": [ c ] }))
             }
         }
     }
