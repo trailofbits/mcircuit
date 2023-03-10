@@ -8,7 +8,7 @@ mod sieve;
 mod sievephase2;
 
 pub use bristol::BristolFashion;
-pub use json::bool_circuit_to_json;
+pub use json::JSON;
 pub use sieve::IR1;
 pub use sievephase2::IR0;
 
