@@ -12,54 +12,66 @@ impl Export<bool> for JSONL {
     fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
         match gate {
             Operation::Input(i) => {
-                writeln!(sink, "{}", json!({ i.to_string(): "Input", "args": [] }))
+                writeln!(sink, "{}", json!({ "wire": i, "op": "Input", "args": [] }))
             }
             Operation::Random(r) => {
-                writeln!(sink, "{}", json!({ r.to_string(): "Random", "args": [] }))
+                writeln!(sink, "{}", json!({ "wire": r, "op": "Random", "args": [] }))
             }
             Operation::Add(o, l, r) => {
                 writeln!(
                     sink,
                     "{}",
-                    json!({ o.to_string(): "Add", "args": [ l, r ] })
+                    json!({ "wire": o, "op": "Add", "args": [ l, r ] })
                 )
             }
             Operation::AddConst(o, i, c) => {
                 writeln!(
                     sink,
                     "{}",
-                    json!({ o.to_string(): "AddConst", "args": [ i, c ] })
+                    json!({ "wire": o, "op": "AddConst", "args": [ i, c ] })
                 )
             }
             Operation::Sub(o, l, r) => {
                 writeln!(
                     sink,
                     "{}",
-                    json!({ o.to_string(): "Sub", "args": [ l, r ] })
+                    json!({ "wire": o, "op": "Sub", "args": [ l, r ] })
                 )
             }
             Operation::SubConst(o, i, c) => {
                 writeln!(
                     sink,
                     "{}",
-                    json!({ o.to_string(): "SubConst", "args": [ i , c ] })
+                    json!({ "wire": o, "op": "SubConst", "args": [ i , c ] })
                 )
             }
             Operation::Mul(o, l, r) => {
-                writeln!(sink, "{}", json!({ o.to_string(): "Mul", "args": [ l, r ] }))
+                writeln!(
+                    sink,
+                    "{}",
+                    json!({ "wire": o, "op": "Mul", "args": [ l, r ] })
+                )
             }
             Operation::MulConst(o, i, c) => {
                 writeln!(
                     sink,
                     "{}",
-                    json!({ o.to_string(): "MulConst", "args": [ i, c ] })
+                    json!({ "wire": o, "op": "MulConst", "args": [ i, c ] })
                 )
             }
             Operation::AssertZero(w) => {
-                writeln!(sink, "{}", json!({ w.to_string(): "AssertZero", "args": [] }))
+                writeln!(
+                    sink,
+                    "{}",
+                    json!({ "wire": w, "op": "AssertZero", "args": [] })
+                )
             }
             Operation::Const(w, c) => {
-                writeln!(sink, "{}", json!({ w.to_string(): "Const", "args": [ c ] }))
+                writeln!(
+                    sink,
+                    "{}",
+                    json!({ "wire": w, "op": "Const", "args": [ c ] })
+                )
             }
         }
     }
