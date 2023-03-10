@@ -6,9 +6,9 @@ use std::io::{Error, ErrorKind, Result, Write};
 use crate::exporters::Export;
 use crate::Operation;
 
-pub struct JSON;
+pub struct JSONL;
 
-impl Export<bool> for JSON {
+impl Export<bool> for JSONL {
     fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
         match gate {
             Operation::Input(i) => {
@@ -62,6 +62,7 @@ impl Export<bool> for JSON {
                 writeln!(sink, "{}", json!({ w.to_string(): "Const", "args": [ c ]}))
             }
         }
+        .and(writeln!(sink, ","))
     }
 
     fn export_circuit(
