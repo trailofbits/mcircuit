@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind, Result, Write};
 
-use crate::exporters::Export;
+use crate::exporters::{Export, WITNESS_LEN};
 use crate::io_extractors::{InputIterator, OutputIterator};
 use crate::Operation;
 
@@ -60,7 +60,7 @@ impl Export<bool> for BristolFashion {
 
     fn export_circuit(
         gates: &[Operation<bool>],
-        witness: &[bool],
+        witness: &Vec<[bool; WITNESS_LEN]>,
         sink: &mut impl Write,
     ) -> Result<()> {
         // Every Bristol Fashion circuit begins with a "header", which predeclares
@@ -102,9 +102,9 @@ impl Export<bool> for BristolFashion {
         writeln!(
             sink,
             "{} {}",
-            witness.len(),
+            witness.len() * WITNESS_LEN,
             std::iter::repeat("1")
-                .take(witness.len())
+                .take(witness.len() * WITNESS_LEN)
                 .collect::<Vec<_>>()
                 .join(" ")
         )?;
@@ -121,7 +121,7 @@ impl Export<bool> for BristolFashion {
                 .join(" ")
         )?;
 
-        let mut wit_iter = witness.iter();
+        let mut wit_iter = witness.iter().flatten();
 
         for gate in gates {
             match gate {

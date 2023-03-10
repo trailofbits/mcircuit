@@ -2,7 +2,7 @@
 
 use std::io::{Error, ErrorKind, Result, Write};
 
-use crate::exporters::Export;
+use crate::exporters::{Export, WITNESS_LEN};
 use crate::Operation;
 
 pub struct IR1;
@@ -58,7 +58,7 @@ impl Export<bool> for IR1 {
 
     fn export_circuit(
         gates: &[Operation<bool>],
-        witness: &[bool],
+        witness: &Vec<[bool; WITNESS_LEN]>,
         sink: &mut impl Write,
     ) -> Result<()> {
         // Header fields.
@@ -67,7 +67,7 @@ impl Export<bool> for IR1 {
 
         // Witness body.
         writeln!(sink, "short_witness @begin")?;
-        for wit_value in witness.iter() {
+        for wit_value in witness.iter().flatten() {
             writeln!(sink, "\t< {} >;", *wit_value as u32)?;
         }
         writeln!(sink, "@end")?;

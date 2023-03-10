@@ -2,7 +2,7 @@
 
 use std::io::{Error, ErrorKind, Result, Write};
 
-use crate::exporters::Export;
+use crate::exporters::{Export, WITNESS_LEN};
 use crate::Operation;
 
 pub struct IR0;
@@ -45,7 +45,7 @@ impl Export<bool> for IR0 {
         }
     }
 
-    fn export_circuit(gates: &[Operation<bool>], _: &[bool], sink: &mut impl Write) -> Result<()> {
+    fn export_circuit(gates: &[Operation<bool>], _: &Vec<[bool; WITNESS_LEN]>, sink: &mut impl Write) -> Result<()> {
         // Header fields.
         writeln!(sink, "version 2.0.0-beta;")?;
         writeln!(sink, "circuit;")?;
