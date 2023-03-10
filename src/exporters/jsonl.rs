@@ -62,7 +62,6 @@ impl Export<bool> for JSONL {
                 writeln!(sink, "{}", json!({ w.to_string(): "Const", "args": [ c ]}))
             }
         }
-        .and(writeln!(sink, ","))
     }
 
     fn export_circuit(
