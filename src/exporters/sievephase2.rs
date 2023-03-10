@@ -2,7 +2,7 @@
 
 use std::io::{Error, ErrorKind, Result, Write};
 
-use crate::exporters::{Export, WITNESS_LEN};
+use crate::exporters::{Export, Witness};
 use crate::Operation;
 
 pub struct IR0;
@@ -45,7 +45,7 @@ impl Export<bool> for IR0 {
         }
     }
 
-    fn export_circuit(gates: &[Operation<bool>], _: &Vec<[bool; WITNESS_LEN]>, sink: &mut impl Write) -> Result<()> {
+    fn export_circuit(gates: &[Operation<bool>], _: &Witness, sink: &mut impl Write) -> Result<()> {
         // Header fields.
         writeln!(sink, "version 2.0.0-beta;")?;
         writeln!(sink, "circuit;")?;
@@ -66,7 +66,7 @@ impl Export<bool> for IR0 {
 
 impl IR0 {
     fn export_input(
-        witness: Option<&[bool]>,
+        witness: Option<&Witness>,
         input_type: &str,
         sink: &mut impl Write,
     ) -> Result<()> {
@@ -75,10 +75,10 @@ impl IR0 {
         writeln!(sink, "{};", input_type)?;
         writeln!(sink, "@type field 2;")?;
 
-        // Private input body.
+        // Input body.
         writeln!(sink, "@begin")?;
         if let Some(w) = witness {
-            for wit_value in w.iter() {
+            for wit_value in w.iter().flatten() {
                 writeln!(sink, "< {} > ;", *wit_value as u32)?;
             }
         }
@@ -87,11 +87,11 @@ impl IR0 {
         Ok(())
     }
 
-    pub fn export_private_input(witness: &[bool], sink: &mut impl Write) -> Result<()> {
+    pub fn export_private_input(witness: &Witness, sink: &mut impl Write) -> Result<()> {
         IR0::export_input(Some(witness), "private_input", sink)
     }
 
-    pub fn export_public_input(instance: Option<&[bool]>, sink: &mut impl Write) -> Result<()> {
+    pub fn export_public_input(instance: Option<&Witness>, sink: &mut impl Write) -> Result<()> {
         IR0::export_input(instance, "public_input", sink)
     }
 }
