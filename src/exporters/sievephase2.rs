@@ -3,8 +3,8 @@
 use std::fs::File;
 use std::io::{BufWriter, Error, ErrorKind, Result, Write};
 
-use crate::exporters::{Export, Witness};
-use crate::Operation;
+use crate::exporters::Export;
+use crate::{Operation, Witness};
 
 pub struct IR0;
 
@@ -114,8 +114,8 @@ impl IR0 {
 #[cfg(test)]
 mod tests {
     use crate::exporters::sievephase2::IR0;
-    use crate::exporters::{Export, Witness};
-    use crate::Operation;
+
+    use crate::{Operation, Witness};
 
     #[test]
     fn print_example_circuit() {
