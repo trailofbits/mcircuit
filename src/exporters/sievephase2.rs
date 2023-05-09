@@ -1,52 +1,37 @@
 //! Export functionality for SIEVE IRs.
 
-use std::io::{Error, ErrorKind, Result, Write};
+use std::fs::File;
+use std::io::{BufWriter, Error, ErrorKind, Result, Write};
 
 use crate::exporters::{Export, Witness};
 use crate::Operation;
 
 pub struct IR0;
 
-impl Export<bool> for IR0 {
-    fn export_gate(gate: &Operation<bool>, sink: &mut impl Write) -> Result<()> {
-        match gate {
-            Operation::Input(i) => {
-                //NOTE(lisaoverall): needs to be updated for field switching
-                writeln!(sink, "${} <- @private();", i)
-            }
-            Operation::Random(_) => Err(Error::new(
-                ErrorKind::Other,
-                "can't use random gates in IR1",
-            )),
-            Operation::Add(o, l, r) => {
-                writeln!(sink, "${} <- @add(${}, ${});", o, l, r)
-            }
-            Operation::AddConst(o, i, c) => {
-                writeln!(sink, "${} <- @addc(${}, < {} >);", o, i, *c as u32)
-            }
-            Operation::Sub(o, l, r) => {
-                writeln!(sink, "${} <- @add(${}, ${});", o, l, r)
-            }
-            Operation::SubConst(o, i, c) => {
-                writeln!(sink, "${} <- @addc(${}, < {} >);", o, i, *c as u32)
-            }
-            Operation::Mul(o, l, r) => {
-                writeln!(sink, "${} <- @mul(${}, ${});", o, l, r)
-            }
-            Operation::MulConst(o, i, c) => {
-                writeln!(sink, "${} <- @mulc(${}, < {} >);", o, i, *c as u32)
-            }
-            Operation::AssertZero(w) => {
-                writeln!(sink, "@assert_zero(${});", w)
-            }
-            Operation::Const(w, c) => {
-                writeln!(sink, "${} <- < {} >;", w, *c as u32)
-            }
-        }
-    }
+impl<const WITNESS_LEN: usize> Export<bool, WITNESS_LEN> for IR0 {
+    fn export(
+        gates: &[Operation<bool>],
+        witness: Option<&Witness<WITNESS_LEN>>,
+        sink: &str,
+    ) -> Result<()> {
+        let witness = witness
+            .ok_or_else(|| Error::new(ErrorKind::Other, "Witness is required for IR0 backend!"))?;
 
-    fn export_circuit(gates: &[Operation<bool>], _: &Witness, sink: &mut impl Write) -> Result<()> {
         // Header fields.
+        let mut public = BufWriter::new(File::create(format!("{}.public_input", sink))?);
+        let mut private = BufWriter::new(File::create(format!("{}.private_input", sink))?);
+        let mut circuit = BufWriter::new(File::create(format!("{}.circuit", sink))?);
+
+        IR0::export_circuit(gates, &mut circuit)?;
+        IR0::export_private_input(witness, &mut private)?;
+        IR0::export_public_input(None::<&Witness<WITNESS_LEN>>, &mut public)?;
+
+        Ok(())
+    }
+}
+
+impl IR0 {
+    fn export_circuit(gates: &[Operation<bool>], sink: &mut impl Write) -> Result<()> {
         writeln!(sink, "version 2.0.0-beta;")?;
         writeln!(sink, "circuit;")?;
         writeln!(sink, "@type field 2;")?;
@@ -56,17 +41,41 @@ impl Export<bool> for IR0 {
         // gate directives. But we currently don't need that.
         writeln!(sink, "@begin")?;
         for gate in gates.iter() {
-            Self::export_gate(gate, sink)?;
+            writeln!(sink, "{}", IR0::export_gate(gate)?)?;
         }
         writeln!(sink, "@end")?;
-
         Ok(())
     }
-}
 
-impl IR0 {
-    fn export_input(
-        witness: Option<&Witness>,
+    fn export_gate(gate: &Operation<bool>) -> Result<String> {
+        match gate {
+            Operation::Input(i) => {
+                //NOTE(lisaoverall): needs to be updated for field switching
+                Ok(format!("${} <- @private();", i))
+            }
+            Operation::Random(_) => Err(Error::new(
+                ErrorKind::Other,
+                "can't use random gates in IR1",
+            )),
+            Operation::Add(o, l, r) => Ok(format!("${} <- @add(${}, ${});", o, l, r)),
+            Operation::AddConst(o, i, c) => {
+                Ok(format!("${} <- @addc(${}, < {} >);", o, i, *c as u32))
+            }
+            Operation::Sub(o, l, r) => Ok(format!("${} <- @add(${}, ${});", o, l, r)),
+            Operation::SubConst(o, i, c) => {
+                Ok(format!("${} <- @addc(${}, < {} >);", o, i, *c as u32))
+            }
+            Operation::Mul(o, l, r) => Ok(format!("${} <- @mul(${}, ${});", o, l, r)),
+            Operation::MulConst(o, i, c) => {
+                Ok(format!("${} <- @mulc(${}, < {} >);", o, i, *c as u32))
+            }
+            Operation::AssertZero(w) => Ok(format!("@assert_zero(${});", w)),
+            Operation::Const(w, c) => Ok(format!("${} <- < {} >;", w, *c as u32)),
+        }
+    }
+
+    fn export_input<const L: usize>(
+        witness: Option<&Witness<L>>,
         input_type: &str,
         sink: &mut impl Write,
     ) -> Result<()> {
@@ -78,7 +87,7 @@ impl IR0 {
         // Input body.
         writeln!(sink, "@begin")?;
         if let Some(w) = witness {
-            for wit_value in w.iter().flatten() {
+            for wit_value in w.witness.iter().flatten() {
                 writeln!(sink, "< {} > ;", *wit_value as u32)?;
             }
         }
@@ -87,11 +96,17 @@ impl IR0 {
         Ok(())
     }
 
-    pub fn export_private_input(witness: &Witness, sink: &mut impl Write) -> Result<()> {
+    pub fn export_private_input<const L: usize>(
+        witness: &Witness<L>,
+        sink: &mut impl Write,
+    ) -> Result<()> {
         IR0::export_input(Some(witness), "private_input", sink)
     }
 
-    pub fn export_public_input(instance: Option<&Witness>, sink: &mut impl Write) -> Result<()> {
+    pub fn export_public_input<const L: usize>(
+        instance: Option<&Witness<L>>,
+        sink: &mut impl Write,
+    ) -> Result<()> {
         IR0::export_input(instance, "public_input", sink)
     }
 }
@@ -99,7 +114,7 @@ impl IR0 {
 #[cfg(test)]
 mod tests {
     use crate::exporters::sievephase2::IR0;
-    use crate::exporters::Export;
+    use crate::exporters::{Export, Witness};
     use crate::Operation;
 
     #[test]
@@ -117,7 +132,6 @@ mod tests {
                 Operation::AddConst(0, 6, true),
                 Operation::AssertZero(0)
             ],
-            &[false, false, true],
             &mut sink,
         )
         .is_ok());
@@ -146,7 +160,13 @@ $0 <- @addc($6, < 1 >);
     fn print_example_private_input() {
         let mut sink = Vec::new();
 
-        assert!(IR0::export_private_input(&[false, false, true], &mut sink,).is_ok());
+        assert!(IR0::export_private_input::<3>(
+            &Witness {
+                witness: vec![[false, false, true], [true, false, true]]
+            },
+            &mut sink
+        )
+        .is_ok());
 
         let bf = std::str::from_utf8(&sink).unwrap();
         assert_eq!(
@@ -156,6 +176,9 @@ private_input;
 @type field 2;
 @begin
 < 0 > ;
+< 0 > ;
+< 1 > ;
+< 1 > ;
 < 0 > ;
 < 1 > ;
 @end
