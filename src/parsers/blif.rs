@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::io::{BufRead, BufReader};
 use std::mem::swap;
 use std::mem::take;
 
@@ -550,7 +549,7 @@ where
     }
 }
 
-impl<T: WireValue> Parse<T> for BlifParser<T>
+impl<T: WireValue> Parse<T, File> for BlifParser<T>
 where
     BlifParser<T>: CanConstructVariant<T>,
 {
