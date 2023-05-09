@@ -1,7 +1,8 @@
 use std::collections::hash_map::{DefaultHasher, Entry};
 use std::collections::HashMap;
+use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::{BufReader, Read};
+use std::io::BufReader;
 
 /// TODO: WireHasher really ought to be a trait so that we can have a `Hasher` and `BackrefHasher`,
 /// and not have to worry about hiding `backref` and the data that we need to back it up behind such
@@ -9,12 +10,11 @@ use std::io::{BufReader, Read};
 use crate::WireValue;
 
 pub mod blif;
-pub mod witness;
 
-pub trait Parse<T: WireValue, R: Read> {
+pub trait Parse<T: WireValue> {
     type Item;
 
-    fn new(reader: BufReader<R>) -> Self;
+    fn new(reader: BufReader<File>) -> Self;
 
     fn next(&mut self) -> Option<Self::Item>;
 }

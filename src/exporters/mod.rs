@@ -1,6 +1,6 @@
 use std::io::Result;
 
-use crate::{Witness, Operation, WireValue};
+use crate::{Operation, WireValue};
 
 // NOTE(jl): 2023/05/09 fully deprecating Bristol, JSON, and IR1 backends.
 // mod bristol;
@@ -10,6 +10,11 @@ use crate::{Witness, Operation, WireValue};
 mod sievephase2;
 
 pub use sievephase2::IR0;
+
+/// The core witness type.
+pub struct Witness<const L: usize> {
+    witness: Vec<[bool; L]>,
+}
 
 /// The core export trait.
 ///
