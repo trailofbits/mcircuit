@@ -1,23 +1,24 @@
-use std::io::{Result, Write};
+use std::io::Result;
 
-use crate::{Operation, WireValue};
+use crate::{Operation, WireValue, Witness};
 
-mod bristol;
-mod json;
-mod sieve;
+// NOTE(jl): 2023/05/09 fully deprecating Bristol, JSON, and IR1 backends.
+// mod bristol;
+// mod sieve;
+// mod json;
+
 mod sievephase2;
 
-pub use bristol::BristolFashion;
-pub use json::bool_circuit_to_json;
-pub use sieve::IR1;
 pub use sievephase2::IR0;
 
 /// The core export trait.
 ///
 /// Individual exporters (such as for Bristol-fashion circuits) are expected
 /// to implement this trait.
-pub trait Export<T: WireValue> {
-    fn export_gate(gate: &Operation<T>, sink: &mut impl Write) -> Result<()>;
-
-    fn export_circuit(gates: &[Operation<T>], witness: &[T], sink: &mut impl Write) -> Result<()>;
+pub trait Export<T: WireValue, const WITNESS_LEN: usize> {
+    fn export(
+        gates: &[Operation<T>],
+        witness: Option<&Witness<WITNESS_LEN>>,
+        out: &str,
+    ) -> Result<()>;
 }

@@ -33,6 +33,11 @@ pub mod parsers;
 mod tests;
 mod translatable;
 
+/// Witness type.
+pub struct Witness<const L: usize> {
+    witness: Vec<[bool; L]>,
+}
+
 /// Implemented for acceptable types to use as wire values. It would be nice if this could just
 /// be a set of required traits, but `num_traits::is_zero` isn't implemented for `bool`.
 pub trait WireValue: Copy + PartialEq + std::fmt::Debug + Serialize {

@@ -10,6 +10,7 @@ use std::io::BufReader;
 use crate::WireValue;
 
 pub mod blif;
+pub mod witness;
 
 pub trait Parse<T: WireValue> {
     type Item;
